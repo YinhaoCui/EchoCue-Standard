@@ -1,0 +1,15 @@
+PyAudioWPatch==0.2.12.9
+audioop-lts==0.2.2; python_version >= "3.13"
+numpy==2.5.3
+sherpa-onnx-core==1.13.8
+sherpa-onnx==1.13.8
+webrtcvad-wheels==2.0.14.post1
+pypdf==6.19.0
+pywebview==6.2.1
+pythonnet==3.2.1
+proxy_tools==0.1.0
+bottle==0.13.4
+typing_extensions==4.16.0
+clr_loader==0.3.1
+cffi==2.1.1
+pycparser==3.11

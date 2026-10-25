@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EchoCue</title><link rel="stylesheet" href="/style.css"></head>
+<body data-theme="classic">
+<div class="shell">
+ <header class="capsule">
+  <div class="handle" aria-label="Drag window"><span class="signal"><i></i><i></i><i></i><i></i></span><span class="brand-name">EchoCue</span></div>
+  <nav aria-label="Workspace"><button class="nav active" data-view="settings" data-i="Settings">Settings</button><button class="nav" data-view="listen" data-i="Listen">Listen</button></nav>
+  <div class="live-state"><span id="dot"></span><span id="live-label">Ready</span></div>
+  <div class="window-controls"><button data-native="minimize" aria-label="Minimize">−</button><button data-native="maximize" aria-label="Maximize">□</button><button data-native="close" aria-label="Close">×</button></div>
+ </header>
+ <main id="settings" class="glass settings-page">
+  <aside><button class="side active" data-section="models" data-i="Models">Models</button><button class="side" data-section="audio" data-i="Audio">Audio</button><button class="side" data-section="meeting-settings" data-i="Meeting assistance">Meeting assistance</button><button class="side" data-section="context" data-i="Context">Context</button><button class="side" data-section="preferences" data-i="Preferences">Preferences</button><button class="side" data-section="usage-settings" data-i="Observed usage">Observed usage</button><div class="side-bottom"><button data-action="hotkeys" data-i="Shortcuts">Shortcuts</button><button data-action="speed" data-i="Model speed test">Model speed test</button><button data-action="check_apis" data-i="Check APIs">Check APIs</button></div></aside>
+  <div class="settings-body"><div class="settings-content">
+   <div class="intro"><div><p class="eyebrow" data-i="Your workspace, ready when you are">Your workspace, ready when you are</p><h1 data-i="Set up your session">Set up your session</h1></div><div class="appearance-controls"><label><span data-i="Interface style">Interface style</span><select id="ui_theme" aria-label="Interface style"></select></label><select id="language" aria-label="Interface language"><option value="en">English</option><option value="zh">中文</option></select></div></div>
+   <div class="settings-grid">
+    <section class="card" id="models"><h2 data-i="AI model">AI model</h2><p data-i="Choose how your answers take shape.">Choose how your answers take shape.</p>
+     <label><span data-i="Provider">Provider</span><select id="provider"></select></label>
+     <label><span data-i="Model">Model</span><select id="model-picker"></select></label>
+     <label><span data-i="Model ID">Model ID</span><input id="model" placeholder="Default model"></label>
+     <p id="model-status" role="status"></p>
+     <div class="inline"><button class="quiet" data-action="refresh" data-i="Refresh models">Refresh models</button><button class="quiet" data-action="usage" data-i="Usage & quota">Usage & quota</button></div>
+     <label id="key-field"><span data-i="API key">API key</span><input id="key" type="password" autocomplete="off" placeholder="Leave blank to keep saved key"></label>
+     <label><span data-i="Reasoning effort">Reasoning effort</span><select id="effort"></select></label>
+     <label><span data-i="Thinking">Thinking</span><select id="thinking_policy"></select></label>
+     <label><span data-i="Answer style">Answer style</span><select id="answer_mode"></select></label>
+    </section>
+    <section class="card" id="audio"><h2 data-i="Audio & transcription">Audio & transcription</h2><p data-i="Separate listening from answering.">Separate listening from answering.</p>
+     <label><span data-i="Audio source">Audio source</span><select id="source"></select></label>
+     <label><span data-i="Playback device">Playback device</span><select id="device"></select></label>
+     <label><span data-i="Microphone device">Microphone device</span><select id="microphone"></select></label>
+     <label><span data-i="Transcription engine">Transcription engine</span><select id="asr_engine"></select></label>
+     <label><span data-i="Transcript language">Transcript language</span><select id="caption"></select></label>
+     <label><span data-i="Answer language">Answer language</span><select id="answer"></select></label>
+     <label><span data-i="Question mode">Question mode</span><select id="question_mode"></select></label>
+     <p class="hint" data-i="Long questions wait for you to select Answer.">Long questions wait for you to select Answer.</p>
+    </section>
+    <section class="card" id="meeting-settings"><h2 data-i="Meeting assistance">Meeting assistance</h2>
+     <label><span data-i="Automatic answers">Automatic answers</span><select id="auto_answers"></select></label>
+     <label><span data-i="Response pace">Response pace</span><select id="auto_pace"></select></label>
+     <p class="hint" data-i="Automatic answers use your selected model and its allowance. Long question mode waits for Answer.">Automatic answers use your selected model and its allowance. Long question mode waits for Answer.</p>
+     <label><span data-i="Local speaker labels">Local speaker labels</span><select id="speaker_labels"></select></label>
+     <label><span data-i="Suppress duplicate echo">Suppress duplicate echo</span><select id="echo_suppression"></select></label>
+     <p class="hint" data-i="Pause transcription to change audio processing. Speaker labels identify the dominant voice per segment; short or uncertain speech keeps its source label. Echo suppression only removes near-identical playback.">Pause transcription to change audio processing. Speaker labels identify the dominant voice per segment; short or uncertain speech keeps its source label. Echo suppression only removes near-identical playback.</p>
+     <p id="speaker-status" role="status"></p>
+     <label><span data-i="Recap when pausing">Recap when pausing</span><select id="auto_recap"></select></label>
+     <p class="hint" data-i="Recaps send the transcript to your selected model and use its allowance.">Recaps send the transcript to your selected model and use its allowance.</p>
+     <button data-meeting="finish_recap" data-i="Finish & recap">Finish & recap</button>
+    </section>
+    <section class="card context-card" id="context"><div class="section-title"><h2 data-i="Session context">Session context</h2><button class="quiet" data-action="analyze" data-i="Analyze first">Analyze first</button></div><p data-i="Give your answers the right background.">Give your answers the right background.</p>
+     <div class="inline"><button data-action="import" data-i="Add file">Add file</button><button data-action="capture" data-i="Capture window">Capture window</button><button data-action="screenshots" data-i="View screenshots">View screenshots</button></div>
+     <label class="stack"><span data-i="Personal notes & goals">Personal notes & goals</span><textarea id="profile" rows="3"></textarea></label>
+     <label class="stack"><span data-i="Reference text">Reference text</span><textarea id="documents" rows="4"></textarea></label>
+     <div class="attachments" id="settings-attachments"></div>
+     <button class="quiet" data-action="save_context" data-i="Save context encrypted">Save context encrypted</button>
+    </section>
+    <section class="card" id="preferences"><h2 data-i="Session preferences">Session preferences</h2>
+     <label><span data-i="Background">Background</span><select id="background_mode"></select></label>
+     <label><span data-i="Transcript finalization">Transcript finalization</span><select id="asr_pause"></select></label>
+     <label><span data-i="Incremental context">Incremental context</span><select id="incremental_context"></select></label>
+     <label><span data-i="Request timeout">Request timeout</span><select id="deadline"></select></label>
+     <label><span data-i="Output tokens">Output tokens</span><select id="max_output"></select></label>
+     <label><span data-i="Prepare context">Prepare context</span><select id="warm_context"></select></label>
+     <label><span data-i="Prediction policy">Prediction policy</span><select id="speculate"></select></label>
+     <label><span data-i="Keep conversation history">Keep conversation history</span><input id="history" type="checkbox"></label>
+     <label class="stack"><span data-i="Prompt">Prompt</span><textarea id="instructions" rows="4"></textarea></label>
+     <label class="stack"><span>LM Studio URL</span><input id="lm_base"></label>
+     <div class="usage"><span data-i="Observed usage">Observed usage</span><pre id="usage">—</pre></div>
+    </section>
+   </div>
+  </div><footer id="settings-footer"><div id="settings-status"></div><button id="prepare" class="primary" data-action="prepare" data-i="Prepare session">Prepare session</button></footer>
+  </div>
+ </main>
+ <main id="listen" class="listen-page" hidden>
+  <div class="glass listen-toolbar"><div class="inline"><button class="primary" id="pause" data-action="listen">Start transcription</button><button data-action="answer" data-i="Answer">Answer</button><button data-action="capture" data-i="Capture">Capture</button><button id="context-toggle" data-i="Context">Context</button></div><div class="inline"><label class="transparency-control"><span data-i="Transparency">Transparency</span><input id="listen_transparency" type="range" min="1" max="99" step="1" aria-label="Transparency"><output id="transparency-value">12%</output></label><span id="model-badge"></span><button id="layout-button" aria-haspopup="true" aria-expanded="false" aria-controls="layout-menu" data-i="Layout">Layout</button><button data-window="topmost" id="pin" data-i="Pin">Pin</button><button id="more" aria-haspopup="true" aria-expanded="false" aria-controls="more-menu" data-i="More">More</button><button data-view="settings" data-i="Settings">Settings</button><button data-native="close" aria-label="Close">×</button></div>
+   <div id="layout-menu" class="menu layout-menu" hidden><h3 data-i="Presets">Presets</h3><div id="preset-list" class="preset-list"></div><form id="preset-form" class="preset-form"><input id="preset-name" maxlength="40" autocomplete="off" aria-label="Preset name" placeholder="Preset name"><button id="preset-save" type="submit" data-i="Save">Save</button></form><h3 data-i="Text and panels">Text and panels</h3><div class="color-row"><label class="color-control" title="Text color" data-title="Text color"><span class="color-glyph" aria-hidden="true">A</span><input id="listen_text_color" type="color" value="#ffffff" aria-label="Text color"></label><span data-i="Text color">Text color</span><label class="color-control" title="Panel color" data-title="Panel color"><span class="color-glyph panel-glyph" aria-hidden="true"></span><input id="listen_panel_color" type="color" value="#213953" aria-label="Panel color"></label><span data-i="Panel color">Panel color</span></div><button data-toggle="listen_text_bold" data-i="Bold text">Bold text</button><button data-toggle="listen_text_outline" data-i="Text outline">Text outline</button><button id="layout-reset" data-i="Reset layout">Reset layout</button></div>
+   <div id="more-menu" class="menu" hidden><h3 data-i="Window">Window</h3><h3 data-i="Session">Session</h3><button data-action="sessions" data-i="Session history">Session history</button><button data-action="edit_transcript" data-i="Edit transcript">Edit transcript</button><button data-action="edit_terms" data-i="Vocabulary">Vocabulary</button><button data-action="export_session" data-i="Export session">Export session</button><button data-action="hotkeys" data-i="Shortcuts">Shortcuts</button></div>
+  </div>
+  <div class="splitter" data-split="toolbar" role="separator" aria-orientation="horizontal" aria-label="Resize toolbar" tabindex="0"></div>
+  <section class="glass transcript-panel"><div class="reading-heading"><h2 data-i="Live transcript">Live transcript</h2><div class="inline"><label class="language-control"><span data-i="Transcript language">Transcript language</span><select id="live-caption" aria-label="Transcript language"></select></label><label class="language-control"><span data-i="Answer language">Answer language</span><select id="live-answer" aria-label="Answer language"></select></label><select id="live-mode" aria-label="Question mode"></select><button class="font-step" data-font="transcript_font_size" data-step="-1" aria-label="Smaller text" title="Smaller text">A−</button><button class="font-step" data-font="transcript_font_size" data-step="1" aria-label="Larger text" title="Larger text">A+</button><button data-copy="transcript" data-i="Copy">Copy</button></div></div><div id="transcript" class="reading transcript" tabindex="0"></div></section>
+  <div class="splitter" data-split="transcript" role="separator" aria-orientation="horizontal" aria-label="Resize transcript and answer" tabindex="0"></div>
+  <section class="glass answer-panel"><div class="reading-heading"><h2 data-i="AI answer">AI answer</h2><div class="inline"><button data-action="cancel" class="quiet" data-i="Cancel answers">Cancel answers</button><button data-action="answer" class="quiet" data-i="Answer again">Answer again</button><button class="font-step" data-font="answer_font_size" data-step="-1" aria-label="Smaller text" title="Smaller text">A−</button><button class="font-step" data-font="answer_font_size" data-step="1" aria-label="Larger text" title="Larger text">A+</button><button data-copy="output" data-i="Copy">Copy</button></div></div><div id="active-jobs" class="attachments"></div><div class="attachments" id="live-attachments"></div><div id="output" class="reading answer" tabindex="0"></div><div id="listen-status"></div></section>
+  <section id="context-drawer" class="glass drawer" aria-labelledby="context-heading" hidden>
+   <div class="section-title"><h2 id="context-heading" data-i="Context">Context</h2><button id="context-reset" data-i="Reset position">Reset position</button><button id="context-close" aria-label="Close context">×</button></div>
+   <p id="context-summary"></p>
+   <div class="context-content">
+    <details class="context-section"><summary data-i="Scenes · prompt and reference material">Scenes · prompt and reference material</summary>
+     <p data-i="Save the current prompt, notes, reference text and screenshots together. Loading replaces the current context; API keys are never included.">Save the current prompt, notes, reference text and screenshots together. Loading replaces the current context; API keys are never included.</p>
+     <label class="context-field"><span data-i="Saved scenes">Saved scenes</span><select id="scene-picker"></select></label>
+     <div class="context-tools"><button data-meeting="load_scene" data-i="Load scene">Load scene</button><button data-meeting="delete_scene" data-i="Delete scene">Delete scene</button></div>
+     <label class="context-field"><span data-i="Scene name">Scene name</span><input id="scene-name" maxlength="80" autocomplete="off"></label>
+     <button data-meeting="save_scene" data-i="Save scene">Save scene</button><p id="scene-status" role="status"></p>
+    </details>
+    <section class="prompt-editor" aria-label="Prompt">
+     <label class="context-field"><span data-i="Prompt">Prompt</span><textarea id="context-instructions" rows="5" aria-describedby="prompt-help"></textarea></label>
+     <p id="prompt-help" data-i="Describe the role, task and answer format. Put background facts in the sources below.">Describe the role, task and answer format. Put background facts in the sources below.</p>
+     <details class="context-section prompt-library"><summary data-i="Prompt templates · saved on this computer">Prompt templates · saved on this computer</summary>
+      <label class="context-field"><span data-i="Saved templates">Saved templates</span><select id="prompt-template"></select></label>
+      <div class="context-tools"><button id="prompt-load" data-i="Load into editor">Load into editor</button><button id="prompt-delete" data-i="Delete template">Delete template</button></div>
+      <label class="context-field"><span data-i="Template name">Template name</span><input id="prompt-name" type="text" maxlength="80" autocomplete="off"></label>
+      <button id="prompt-save" data-i="Save as template">Save as template</button><p id="prompt-status" role="status"></p>
+     </details>
+    </section>
+    <div class="context-tools"><button data-action="import" data-i="Add file">Add file</button><button data-action="capture" data-i="Capture window">Capture window</button><button data-action="analyze" data-i="Analyze first">Analyze first</button></div>
+    <label class="context-field"><span data-i="Personal notes & goals">Personal notes & goals</span><textarea id="context-profile" rows="3"></textarea></label>
+    <label class="context-field"><span data-i="Reference text">Reference text</span><textarea id="context-documents" rows="5"></textarea></label>
+    <details class="context-section"><summary data-i="Analysis · AI-generated">Analysis · AI-generated</summary><p data-i="Analysis is a reference, not a confirmed fact. Editing sources clears it.">Analysis is a reference, not a confirmed fact. Editing sources clears it.</p><pre id="context-analysis"></pre></details>
+    <details class="context-section" open><summary data-i="Screenshots">Screenshots</summary><div id="context-images"></div></details>
+    <section class="context-memory" aria-labelledby="context-memory-heading"><h3 id="context-memory-heading" data-i="Conversation memory">Conversation memory</h3><label><input id="context-history" type="checkbox"><span data-i="Use previous Q&A">Use previous Q&A</span></label><p id="context-memory-status"></p><button id="context-clear-history" data-i="Clear Q&A memory">Clear Q&A memory</button><p data-i="Keeps your notes, transcript and visible answers. Already sent content cannot be recalled from a provider.">Keeps your notes, transcript and visible answers. Already sent content cannot be recalled from a provider.</p></section>
+   </div>
+   <footer class="context-footer"><p id="context-edit-status" role="status"></p><div class="context-tools"><button id="context-apply" class="primary" data-i="Apply changes">Apply changes</button><button id="context-reload" data-i="Discard draft">Discard draft</button><button data-action="save_context" data-i="Save context encrypted">Save context encrypted</button></div></footer>
+   <div class="drawer-resize" id="context-resize" title="Drag to resize" aria-hidden="true"></div>
+  </section>
+ </main>
+ <div class="statusbar" role="status"><span id="status">Connecting to the local application…</span><span id="job-count"></span></div>
+ <nav class="workspace-rail" aria-label="Workspace navigation"><button data-view="listen" data-i="Listen">Listen</button><button data-view="settings" data-i="Settings">Settings</button><button data-action="hotkeys" data-i="Shortcuts">Shortcuts</button></nav>
+</div><div class="resize-grip" id="resize-grip" title="Drag to resize" aria-hidden="true"></div><script src="/markdown.js"></script><script src="/app.js"></script><script src="/context_editor.js"></script><script src="/meeting.js"></script><script src="/popups.js"></script>
+</body></html>

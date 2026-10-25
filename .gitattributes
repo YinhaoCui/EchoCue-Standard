@@ -1,0 +1,10 @@
+* text=auto
+*.py text eol=lf
+*.pyw text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Translation fragments intentionally include trailing spaces inside a multiline string.
+app/locale_catalog.py whitespace=-blank-at-eol

@@ -1,0 +1,53 @@
+# Personal settings, credentials, conversations, and temporary files
+/.codex/
+/.kiro/
+/data/
+/work/
+.env
+.env.*
+*.dpapi
+*.sqlite3
+*.sqlite3-*
+*.log
+
+# Installed dependencies, downloaded models, and generated distributions
+/vendor/
+/runtime/
+/releases/
+/dist/
+/build/
+/.venv/
+/venv/
+*.exe
+*.dll
+*.pdb
+*.zip
+*.sha256
+
+# Python and editor caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+
+# Credentials, certificates, local exports, and editor recovery files
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+service-account*.json
+secrets*.json
+*.sqlite
+*.db
+*.bak
+*.tmp
+*.swp
+*~
+
+/installer-prerequisites/

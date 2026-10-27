@@ -17,6 +17,11 @@ class ResizeEdgesTests(unittest.TestCase):
             self.bridge.state['options'].update(listen_layout='0,0,650,380,400', midnight_split='60')
             self.bridge.publish()
         self.page.wait_for_function("current.options.midnight_split === '60'")
+        self.page.wait_for_function("""() => {
+            const left = document.querySelector('.transcript-panel').getBoundingClientRect();
+            const right = document.querySelector('.answer-panel').getBoundingClientRect();
+            return Math.abs(right.left - left.right - 12) <= 1;
+        }""")
 
     def test_saved_panel_widths_do_not_leave_a_large_gap_between_columns(self):
         self.reported_layout()
@@ -59,6 +64,14 @@ class ResizeEdgesTests(unittest.TestCase):
         self.assertAlmostEqual(right['x']-left['x']-left['width'],12,delta=1)
 
     def test_outer_targets_follow_the_visible_frame_instead_of_empty_margins(self):
+        # Resize targets are positioned on the next animation frame.
+        self.page.wait_for_function("""() => {
+            const frame = windowFrame();
+            return ['left', 'right', 'top', 'bottom'].every(edge => {
+                const target = document.querySelector(`[data-resize-edge="${edge}"]`).getBoundingClientRect();
+                return Math.abs(target[edge] - frame[edge]) <= 1;
+            });
+        }""")
         frame=self.page.evaluate('windowFrame()')
         for edge in ('left','right','top','bottom'):
             target=self.page.locator('[data-resize-edge="'+edge+'"]').bounding_box()

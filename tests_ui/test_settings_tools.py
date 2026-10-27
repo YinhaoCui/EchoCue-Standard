@@ -77,6 +77,9 @@ class SettingsToolsTests(unittest.TestCase):
             self.page.fill('.color-list .hex',color)
             self.page.keyboard.press('Enter')
             self.page.wait_for_function('(args)=>current.options[args[0]]===args[1]',arg=[field,color])
+            self.page.wait_for_function("""([field, rgb]) =>
+                getComputedStyle(document.querySelector('label.color-control:has(#' + field + ')')).backgroundColor === rgb
+            """, arg=[field, rgb])
             preview=self.page.locator('label.color-control:has(#'+field+')')
             self.assertEqual(preview.evaluate('el=>getComputedStyle(el).backgroundColor'),rgb)
             box=preview.bounding_box()

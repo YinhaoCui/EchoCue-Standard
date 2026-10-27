@@ -13,6 +13,6 @@ python tools/package_release.py
 
 Optional batch transcription uses `runtime/Release/whisper-cli.exe`, its DLLs, and `runtime/ggml-base.bin`. When present, the packager includes them alongside streaming models. Local dependencies, models, generated packages and user files are excluded from Git.
 
-The installer is `dist/EchoCue-Standard-1.0.0-Setup-x64.exe`. Its default destination is `%LOCALAPPDATA%/Programs/EchoCue Standard`. Installed data goes to `%LOCALAPPDATA%/EchoCue Standard/data`; the portable edition keeps data in `_internal/data`. Upgrades and uninstall retain installed user data. The two editions use separate application identities and can coexist. Set distinct global shortcuts if running them together.
+The installer is `dist/EchoCue-Standard-1.0.1-Setup-x64.exe`. Its default destination is `%LOCALAPPDATA%/Programs/EchoCue Standard`. Installed data goes to `%LOCALAPPDATA%/EchoCue Standard/data`; the portable edition keeps data in `_internal/data`. Upgrades and uninstall retain installed user data. The two editions use separate application identities and can coexist. Set distinct global shortcuts if running them together.
 
 Microsoft's signed WebView2 bootstrapper is verified during installer compilation. Installation needs internet access only if the WebView2 Runtime is missing. Installer signing requires your own code-signing certificate; the provided build does not sign the installer.

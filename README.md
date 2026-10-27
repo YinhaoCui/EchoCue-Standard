@@ -8,7 +8,7 @@
 
 System audio, your microphone, reference material, and multiple AI models in one Windows desktop workspace.
 
-[![Version](https://img.shields.io/badge/Version-1.0.0-2d847a)](https://github.com/YinhaoCui/EchoCue-Standard/releases/latest)
+[![Version](https://img.shields.io/badge/Version-1.0.1-2d847a)](https://github.com/YinhaoCui/EchoCue-Standard/releases/latest)
 [![Windows build](https://github.com/YinhaoCui/EchoCue-Standard/actions/workflows/windows.yml/badge.svg)](https://github.com/YinhaoCui/EchoCue-Standard/actions/workflows/windows.yml)
 ![Platform](https://img.shields.io/badge/Windows-x64-0078D4)
 ![Interface languages](https://img.shields.io/badge/UI-English%20%7C%20中文-2563EB)
@@ -19,7 +19,7 @@ System audio, your microphone, reference material, and multiple AI models in one
 
 </div>
 
-Current version: **1.0.0**. Install with `EchoCue-Standard-1.0.0-Setup-x64.exe`, or extract the portable download and open `EchoCue.exe`.
+Current version: **1.0.1**. Install with `EchoCue-Standard-1.0.1-Setup-x64.exe`, or extract the portable download and open `EchoCue.exe`.
 
 ## Why EchoCue?
 
@@ -95,7 +95,7 @@ Use **Long question** to collect speech through pauses and submit manually. For 
 
 ### 🪟 A floating desktop workspace
 
-- Switch between Classic Glass and Midnight Studio from Settings or the listening Layout menu. Midnight Studio shows transcript and answer side by side on wide windows.
+- Switch between Classic Glass, light Workbench, and Black Gold Workbench from Settings or the listening Layout menu. Workbench shows transcript and answer side by side with answer task tabs.
 - Restore an interactive window with the recovery shortcut.
 
 
@@ -158,7 +158,6 @@ Yes. Change the interface language in settings and set caption and answer langua
 | [Context preparation](docs/CONTEXT_PREPARATION.md) | Preparation, session reuse, and reasoning controls |
 | [Interface language](docs/UI_LANGUAGE.md) | Interface, transcript, and answer languages |
 | [Token optimizations and pause/resume](docs/TOKEN_OPTIMIZATIONS.md) | Context, image, and translation caching |
-| [Prompt-language token benchmark](docs/PROMPT_TOKEN_BENCHMARK_2026-10-17.md) | Internal prompt language selection and measured limitations |
 | [Documentation index](docs/README.md) | More guides, benchmarks, and historical validation |
 | [Changelog](CHANGELOG.md) | Version changes |
 

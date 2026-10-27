@@ -19,6 +19,24 @@ COLOR = re.compile(r'#[0-9a-f]{6}')
 STATE_WAIT = 1.0  # longest a /state read waits for a change, in seconds
 
 
+def presentation_jobs(app):
+    """Point tabs at the existing log, without sending another copy of each answer."""
+    offsets = [0]
+    for part in getattr(app, 'output_parts', []):
+        # Browser string slices use UTF-16 code units, including for emoji.
+        offsets.append(offsets[-1] + len(part.encode('utf-16-le', errors='surrogatepass')) // 2)
+    result = []
+    for identity, job in app.jobs.items():
+        region = getattr(app, 'job_regions', {}).get(identity)
+        span = offsets[region:region + 2] if isinstance(region, int) and region >= 0 else []
+        result.append(dict(id=identity, done=job.get('done', False),
+                           completed=job.get('completed', False),
+                           label=job.get('label', ''), state=app.locale.t(job.get('state', '')),
+                           provider=job.get('provider', ''), model=job.get('model', ''),
+                           span=span if len(span) == 2 else None))
+    return result
+
+
 def state_query(path):
     """Read rev, boot, text versions and wait from a /state URL. Bad values mean 'send everything'."""
     from urllib.parse import parse_qs, urlsplit
@@ -186,6 +204,8 @@ class GlassBridge:
                         self.reply(200, bridge.read_state(self.path))
                     return
                 files = {'/': 'index.html', '/app.js': 'app.js', '/context_editor.js': 'context_editor.js', '/meeting.js': 'meeting.js', '/markdown.js': 'markdown.js', '/popups.js': 'popups.js', '/style.css': 'style.css'}
+                files['/workbench.js'] = 'workbench.js'
+                files['/settings_tools.js'] = 'settings_tools.js'
                 files.update({'/icons/' + p.name: 'icons/' + p.name
                               for p in (ASSETS / 'icons').glob('*.svg')})
                 name = files.get(self.path)
@@ -235,6 +255,7 @@ class GlassBridge:
             speaker_note=getattr(getattr(a, 'live', None), 'speaker_note', ''),
             language=a.locale.language, providers=providers.NAMES,
             provider=provider, model=model, models=a.cli_models() if cli else list(a.model_choices),
+            caption_translation=a.caption_models.state(),
             model_status=a.locale.t(a.cli_model_note.get() if cli else a.model_catalog_note() + ' ' + a.key_status.get()),
             efforts=choices(provider, model, a.codex_capabilities), effort=a.reasoning_selection.get(), cli=cli,
             has_key=bool(a.key.get()), options={k: v.get() for k, v in a.advanced.items()},
@@ -257,11 +278,30 @@ class GlassBridge:
             listening=bool(a.capture.active() or a.mic.active()), preparing=getattr(a, 'preparing_listen', False),
             status=a.locale.t(a.status.get()), transcript=a.transcript_view,
             output=a.output_text, usage=a.locale.t(usage_lines(rows, a.session_id)),
-            jobs=[dict(id=k, done=j.get('done', False)) for k, j in a.jobs.items()],
+            diagnostics=dict(speed=a.inline_speed_state() if hasattr(a, 'inline_speed_state') else None,
+                             api=dict(busy=getattr(a, 'check_busy', False), report=getattr(a, 'inline_api_report', '')),
+                             quota=dict(codex=getattr(a, 'codex_quota_text', ''), deepseek=getattr(a, 'deepseek_balance_text', ''),
+                                        kimi=getattr(a, 'kimi_balance_text', ''), busy=getattr(a, 'quota_busy', False), balances=list(getattr(a, 'balance_busy', [])),
+                                        models=a.token_ledger.summary(),
+                                        legacy=a.usage_ledger.summary() if hasattr(a, 'usage_ledger') else '')),
+            jobs=presentation_jobs(a),
             native=self.window_state, closing=getattr(a, 'closing', False))
 
     def settings(self, data):
         a = self.app
+        if 'caption_provider' in data:
+            import providers
+            if data['caption_provider'] not in ('', *providers.NAMES):
+                raise ValueError('Unknown caption provider')
+        if 'caption_model' in data:
+            value = data['caption_model']
+            if not isinstance(value, str) or len(value) > 256 or any(ord(c) < 32 for c in value):
+                raise ValueError('Invalid caption model ID')
+        caption_changed = any(key in data and data[key] != a.advanced[key].get()
+                              for key in ('caption_provider', 'caption_model'))
+        for key in ('caption_provider', 'caption_model'):
+            if key in data:
+                a.advanced[key].set(data[key])
         from settings_state import PRESENTATION_DEFAULTS, presentation_value
         presentation = {key: presentation_value(key, data[key]) for key in PRESENTATION_DEFAULTS if key in data}
         from meeting_assistance import OPTIONS
@@ -369,6 +409,8 @@ class GlassBridge:
             a.instructions.set(data['instructions'])
         if context_changed:
             a.context_changed()
+        if caption_changed:
+            a.change_content_language('caption')
         a.save_preferences()
 
     def command(self, data):
@@ -432,7 +474,9 @@ class GlassBridge:
         elif action == 'cancel_job':
             a.cancel_job(int(data['id']))
         elif action == 'check_apis':
-            a.check_gemini(all_keys=True)
+            a.check_gemini(all_keys=True, inline=True)
+        elif action in ('speed', 'speed_select', 'speed_start', 'speed_refresh', 'speed_cancel'):
+            a.inline_speed_command(action, data)
         elif action in ('edit_transcript', 'edit_terms', 'export_session', 'clear_context'):
             getattr(a, action)()
         elif action == 'capture':
@@ -441,6 +485,8 @@ class GlassBridge:
             a.start_analysis()
         elif action == 'refresh':
             (a.refresh_cli_models if cli_provider(a.provider.get()) else a.refresh_models)()
+        elif action == 'refresh_caption_models':
+            a.caption_models.refresh()
         elif action == 'import':
             from tkinter import filedialog
             from session_support import read_document
@@ -465,9 +511,18 @@ class GlassBridge:
             if data.get('value') != 'topmost':
                 raise ValueError('Unknown window action')
             a.window_hotkey('topmost')
-        elif action in ('usage', 'speed', 'sessions', 'screenshots'):
-            getattr(a, dict(usage='show_usage', speed='show_speed_test',
-                            sessions='session_browser', screenshots='screenshot_manager')[action])()
+        elif action in ('usage', 'refresh_quota'):
+            a.refresh_codex_quota()
+        elif action == 'refresh_balance':
+            if data.get('provider') not in ('DeepSeek', 'Kimi'): raise ValueError('Invalid balance provider')
+            a.refresh_deepseek_balance(data['provider'])
+        elif action == 'open_usage_page':
+            import webbrowser
+            pages = {'Gemini': 'https://aistudio.google.com/usage', 'Qwen': 'https://help.aliyun.com/zh/model-studio/model-usage-statistics'}
+            if data.get('provider') not in pages: raise ValueError('Invalid usage provider')
+            webbrowser.open(pages[data['provider']])
+        elif action in ('sessions', 'screenshots'):
+            getattr(a, dict(sessions='session_browser', screenshots='screenshot_manager')[action])()
         elif action == 'close':
             a.close()
         else:

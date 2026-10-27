@@ -69,6 +69,10 @@ class FakeBridge:
                     bridge.reads += 1
                     return self.reply(200, bridge.feed.read(**state_query(self.path)))
                 name = {'/': 'index.html', '/app.js': 'app.js', '/context_editor.js': 'context_editor.js', '/meeting.js': 'meeting.js', '/markdown.js': 'markdown.js', '/popups.js': 'popups.js', '/style.css': 'style.css'}.get(self.path)
+                if self.path == '/workbench.js':
+                    name = 'workbench.js'
+                if self.path == '/settings_tools.js':
+                    name = 'settings_tools.js'
                 if self.path.startswith('/icons/'):
                     name = 'icons/' + Path(self.path).name
                 path = WEB / name if name else None
@@ -150,6 +154,40 @@ class FakeBridge:
 
 @unittest.skipIf(sync_playwright is None, 'playwright is not installed (pip install -r requirements-dev.txt)')
 class ListenPageTests(unittest.TestCase):
+    def test_listening_avoids_activation_but_text_editors_allow_keyboard_focus(self):
+        self.page.evaluate("""() => {
+            window.pywebview = {api: {shape: layout => {
+                window.__activationLayout = layout; return Promise.resolve(true);
+            }}};
+            lastShape = ''; scheduleShape();
+        }""")
+        self.page.wait_for_function('window.__activationLayout?.mouse_only === true')
+        self.page.click('#context-toggle')
+        self.page.wait_for_function('window.__activationLayout?.mouse_only === true')
+        self.page.fill('#context-instructions', 'Keyboard input still works')
+        self.page.wait_for_function('window.__activationLayout?.mouse_only === false')
+        self.assertEqual(self.page.input_value('#context-instructions'), 'Keyboard input still works')
+        self.page.click('#context-toggle')
+        self.page.wait_for_function('window.__activationLayout?.mouse_only === true')
+        self.page.click('#listen button[data-view=settings]')
+        self.page.wait_for_function('window.__activationLayout?.mouse_only === false')
+
+    def test_toolbar_menus_keep_no_activation_until_a_text_field_is_focused(self):
+        self.page.evaluate("""() => {
+            window.pywebview={api:{shape:layout=>{window.__activationLayout=layout;return Promise.resolve(true)}}};
+            lastShape=''; scheduleShape();
+        }""")
+        for button, menu in (('#layout-button','#layout-menu'),('#more','#more-menu'),('#layout-button','#layout-menu')):
+            self.page.click(button)
+            self.assertTrue(self.page.is_visible(menu))
+            self.page.wait_for_function('window.__activationLayout?.mouse_only === true')
+        self.assertFalse(self.page.evaluate('window.__activationLayout.keyboard_editing'))
+        self.page.fill('#preset-name','My layout')
+        self.page.wait_for_function('window.__activationLayout?.mouse_only === false')
+        self.assertTrue(self.page.evaluate('window.__activationLayout.keyboard_editing'))
+        self.page.click('#more')
+        self.page.wait_for_function('window.__activationLayout?.mouse_only === true')
+
     def test_catalog_refresh_keeps_unlisted_selection_without_claiming_availability(self):
         with self.bridge.lock:
             self.bridge.state.update(model='saved-custom', models=['new-chat'],
@@ -261,7 +299,8 @@ class ListenPageTests(unittest.TestCase):
     def setUpClass(cls):
         cls.playwright = sync_playwright().start()
         channel = os.environ.get('ECHOCUE_UI_BROWSER', 'msedge')
-        cls.browser = cls.playwright.chromium.launch(channel=channel or None, headless=True)
+        cls.browser = cls.playwright.chromium.launch(channel=channel or None, headless=True,
+                                                    ignore_default_args=['--hide-scrollbars'])
 
     def meeting_ack(self, action):
         for _ in range(60):
@@ -364,6 +403,44 @@ class ListenPageTests(unittest.TestCase):
         self.page.mouse.down()
         self.page.mouse.move(x + dx, y + dy, steps=8)
         self.page.mouse.up()
+
+    def test_reading_scrollbars_drag_and_keep_position_during_updates(self):
+        text = '\n\n'.join(f'Record {i}: English transcript / 中文翻译。' for i in range(90))
+        with self.bridge.lock:
+            self.bridge.state.update(transcript=text, output=text)
+            self.bridge.publish()
+        self.page.wait_for_function("current.transcript.includes('Record 89')")
+        for width in (1180, 760):
+            self.page.set_viewport_size({'width': width, 'height': 760})
+            for selector in ('#transcript', '#output'):
+                with self.subTest(width=width, pane=selector):
+                    pane = self.page.locator(selector)
+                    metrics = pane.evaluate('''el => {
+                        el.scrollTop=0;
+                        return {overflow:getComputedStyle(el).overflowY,
+                                gutter:el.offsetWidth-el.clientWidth,
+                                scrollable:el.scrollHeight>el.clientHeight};
+                    }''')
+                    self.assertEqual(metrics['overflow'], 'scroll')
+                    self.assertGreaterEqual(metrics['gutter'], 10)
+                    self.assertTrue(metrics['scrollable'])
+                    box = pane.bounding_box()
+                    self.page.mouse.move(box['x'] + box['width'] - metrics['gutter'] / 2,
+                                         box['y'] + metrics['gutter'] + 8)
+                    self.page.mouse.down()
+                    self.page.mouse.move(box['x'] + box['width'] - metrics['gutter'] / 2,
+                                         box['y'] + min(90, box['height'] - 20), steps=8)
+                    self.page.mouse.up()
+                    self.assertGreater(pane.evaluate('el => el.scrollTop'), 0)
+                    pane.evaluate('el => el.scrollTop=120')
+            with self.bridge.lock:
+                self.bridge.state.update(transcript=self.bridge.state['transcript'] + '\n\nIncoming transcript',
+                                         output=self.bridge.state['output'] + '\n\nIncoming answer')
+                self.bridge.publish()
+            self.page.wait_for_function("current.output.endsWith('Incoming answer')")
+            for selector in ('#transcript', '#output'):
+                self.assertAlmostEqual(self.page.locator(selector).evaluate('el => el.scrollTop'), 120, delta=2)
+            self.page.screenshot(path=str(WEB.parent.parent / f'work/reading-scrollbars-{getattr(self,"theme","classic")}-{width}.png'))
 
     def test_toolbar_stays_on_one_row(self):
         for width in (1500, 1180, 900, 760):
@@ -596,7 +673,7 @@ class ListenPageTests(unittest.TestCase):
         rects = [r[:4] for r in self.page.evaluate('window.__shape.rects')]
         # Drag bars report their whole bar, so a thin handle is still easy to grab.
         selectors = ['.listen-toolbar', '#listen>.splitter', '.side-grip', '.window-resize-edge']
-        if self.page.evaluate("document.body.dataset.theme === 'midnight'"):
+        if self.page.evaluate('darkWorkspace()'):
             selectors += ['.capsule', '.workspace-rail']
         for selector in selectors:
             boxes = self.page.evaluate("s => [...document.querySelectorAll(s)].filter(e => e.getClientRects().length)"
@@ -616,20 +693,25 @@ class ListenPageTests(unittest.TestCase):
         with self.bridge.lock:
             self.bridge.state['jobs'] = [dict(id=19, done=False)]
             self.bridge.publish()
-        for theme in ('midnight', 'classic', 'midnight'):
+        for theme in ('cosmic', 'workbench', 'classic'):
             self.page.click('#layout-button')
             self.page.select_option('#live-ui-theme', theme)
             self.wait_option('ui_theme', theme)
-            self.page.wait_for_function('theme => document.body.dataset.theme === theme', arg=theme)
+            self.page.wait_for_function('theme => document.body.dataset.theme === theme', arg='workbench' if theme == 'cosmic' else theme)
             self.assertTrue(self.page.evaluate('window.__originalControls.every(el => el.isConnected)'))
             self.assertEqual(self.page.input_value('#context-instructions'), 'Keep this unsaved draft across style changes')
             self.assertEqual(self.bridge.state['instructions'], '')
             self.assertEqual(self.bridge.state['jobs'], [dict(id=19, done=False)])
             self.page.keyboard.press('Escape')
         self.page.click('#active-jobs button')
+        # The click dispatches an asynchronous HTTP command; wait for receipt.
+        for _ in range(40):
+            if any(c.get('action') == 'cancel_job' and c.get('id') == 19 for c in self.bridge.commands):
+                break
+            self.page.wait_for_timeout(50)
         self.assertTrue(any(c.get('action') == 'cancel_job' and c.get('id') == 19 for c in self.bridge.commands))
         self.page.click('.listen-toolbar [data-view="settings"]')
-        self.assertEqual(self.page.input_value('#ui_theme'), 'midnight')
+        self.assertEqual(self.page.input_value('#ui_theme'), 'classic')
         self.page.select_option('#ui_theme', 'classic')
         self.wait_option('ui_theme', 'classic')
 
@@ -736,11 +818,6 @@ class ListenPageTests(unittest.TestCase):
         self.page.click('#layout-button')
         self.assertEqual(self.page.text_content('#layout-reset'), '恢复默认布局')
         self.assertEqual(self.page.get_attribute('#preset-name', 'placeholder'), '预设名称')
-
-
-class MidnightListenPageTests(ListenPageTests):
-    """Run the complete interaction suite against the second production style."""
-    theme = 'midnight'
 
 
 if __name__ == '__main__':

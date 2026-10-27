@@ -4,7 +4,7 @@
 
 # EchoCue Standard
 
-Windows 安装版：运行 `EchoCue-Standard-1.0.0-Setup-x64.exe`，从开始菜单或可选桌面快捷方式启动。通过 Windows 设置 → 应用 → 已安装的应用卸载。安装版的配置和会话保存在 `%LOCALAPPDATA%\EchoCue Standard`，升级和卸载均保留数据。安装包包含 Python、依赖和转录模型；缺少 WebView2 时会联网安装微软运行时。安装包不包含个人密钥、配置或会话。
+Windows 安装版：运行 `EchoCue-Standard-1.0.1-Setup-x64.exe`，从开始菜单或可选桌面快捷方式启动。通过 Windows 设置 → 应用 → 已安装的应用卸载。安装版的配置和会话保存在 `%LOCALAPPDATA%\EchoCue Standard`，升级和卸载均保留数据。安装包包含 Python、依赖和转录模型；缺少 WebView2 时会联网安装微软运行时。安装包不包含个人密钥、配置或会话。
 
 ### 实时听写，随时应答。
 
@@ -21,7 +21,7 @@ Windows 安装版：运行 `EchoCue-Standard-1.0.0-Setup-x64.exe`，从开始菜
 
 </div>
 
-当前源码版本：**1.0.0**。完整解压便携包后，请打开 `EchoCue.exe`。
+当前源码版本：**1.0.1**。完整解压便携包后，请打开 `EchoCue.exe`。
 
 ## 为什么做 EchoCue？
 
@@ -93,7 +93,7 @@ EchoCue 把这几步连在一起：在本地转录电脑声音与麦克风，带
 
 ### 🪟 桌面悬浮工作区
 
-- 在设置页或监听布局菜单中切换经典玻璃与 Midnight Studio 深色工作台；宽窗口下支持转录与回答左右分栏。
+- 在设置页或监听布局菜单中切换经典玻璃、浅色工作台与黑金工作台；支持转录和回答分栏以及回答任务标签。
 
 
 ### 📊 用量与响应观察
@@ -157,7 +157,6 @@ CLI 通道沿用各自配置的身份验证与计费方式。应用不会自动�
 | [上下文预准备](docs/CONTEXT_PREPARATION.md) | 预准备、会话复用与推理控制 |
 | [语言设置](docs/UI_LANGUAGE.md) | 界面、转录与回答语言 |
 | [用量优化与暂停恢复](docs/TOKEN_OPTIMIZATIONS.md) | 上下文、图片和翻译缓存 |
-| [提示词语言与 Token 基准](docs/PROMPT_TOKEN_BENCHMARK_2026-10-17.md) | 内部提示词语言选择与实测限制 |
 | [文档索引](docs/README.md) | 更多指南、基准与历史验证记录 |
 | [更新日志](CHANGELOG.md) | 版本变更 |
 

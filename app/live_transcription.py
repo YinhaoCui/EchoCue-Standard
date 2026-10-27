@@ -6,13 +6,13 @@ import threading
 import time
 from session_support import Cancelled
 
-def append_transcript(current, previous_source, record):
+def append_transcript(current, previous_source, record, separator=' '):
     source = (record.get('source'), record['speaker']) if record.get('speaker') else record.get('source')
     body = record.get('body')
     if body is None:
         body = record['text'].split('\n', 1)[-1]
     if current and source == previous_source:
-        return current + ' ' + body, source
+        return current + separator + body, source
     return current + ('\n\n' if current else '') + record['text'], source
 
 class LiveTranscriber:

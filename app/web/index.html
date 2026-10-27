@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>EchoCue</title><link rel="stylesheet" href="/style.css"></head>
-<body data-theme="classic">
+<body data-theme="workbench">
 <div class="shell">
  <header class="capsule">
   <div class="handle" aria-label="Drag window"><span class="signal"><i></i><i></i><i></i><i></i></span><span class="brand-name">EchoCue</span></div>
@@ -26,6 +26,13 @@
      <label><span data-i="Answer style">Answer style</span><select id="answer_mode"></select></label>
     </section>
     <section class="card" id="audio"><h2 data-i="Audio & transcription">Audio & transcription</h2><p data-i="Separate listening from answering.">Separate listening from answering.</p>
+     <details class="settings-options" open id="caption-model-settings"><summary data-i="Caption translation model">Caption translation model</summary>
+      <p class="hint" data-i="Independent of answers. Uses the lowest supported thinking level. API keys are shared with the selected provider settings.">Independent of answers. Uses the lowest supported thinking level. API keys are shared with the selected provider settings.</p>
+      <label><span data-i="Translation provider">Translation provider</span><select id="caption_provider"></select></label>
+      <label><span data-i="Translation model">Translation model</span><select id="caption-model-picker"></select></label>
+      <label><span data-i="Translation model ID">Translation model ID</span><input id="caption_model" maxlength="256" placeholder="Auto · prefer fast models"></label>
+      <p id="caption-model-status" role="status"></p><button class="quiet" data-action="refresh_caption_models" data-i="Refresh translation models">Refresh translation models</button>
+     </details>
      <label><span data-i="Audio source">Audio source</span><select id="source"></select></label>
      <label><span data-i="Playback device">Playback device</span><select id="device"></select></label>
      <label><span data-i="Microphone device">Microphone device</span><select id="microphone"></select></label>
@@ -64,7 +71,7 @@
      <label><span data-i="Prediction policy">Prediction policy</span><select id="speculate"></select></label>
      <label><span data-i="Keep conversation history">Keep conversation history</span><input id="history" type="checkbox"></label>
      <label class="stack"><span data-i="Prompt">Prompt</span><textarea id="instructions" rows="4"></textarea></label>
-     <label class="stack"><span>LM Studio URL</span><input id="lm_base"></label>
+     <label class="stack"><span data-i="LM Studio URL">LM Studio URL</span><input id="lm_base"></label>
      <div class="usage"><span data-i="Observed usage">Observed usage</span><pre id="usage">—</pre></div>
     </section>
    </div>
@@ -115,4 +122,4 @@
  <div class="statusbar" role="status"><span id="status">Connecting to the local application…</span><span id="job-count"></span></div>
  <nav class="workspace-rail" aria-label="Workspace navigation"><button data-view="listen" data-i="Listen">Listen</button><button data-view="settings" data-i="Settings">Settings</button><button data-action="hotkeys" data-i="Shortcuts">Shortcuts</button></nav>
 </div><div class="resize-grip" id="resize-grip" title="Drag to resize" aria-hidden="true"></div><script src="/markdown.js"></script><script src="/app.js"></script><script src="/context_editor.js"></script><script src="/meeting.js"></script><script src="/popups.js"></script>
-</body></html>
+<script src="/workbench.js"></script><script src="/settings_tools.js"></script></body></html>

@@ -136,6 +136,8 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
         self.device_index = -1
         self.init_cli_models()
         self.init_reasoning()
+        from caption_models import CaptionModels
+        self.caption_models = CaptionModels(self)
         self.update_provider()
         self.init_sessions()
         self.init_screenshots()
@@ -248,6 +250,7 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
         self.save_timer = None
         self.api_settings[self.api_editing] = {'key': self.key.get().strip(), 'model': self.model.get().strip()}
         common = {'ui_language': self.locale.language, 'caption_language': self.content_language('caption'),
+                  'caption_translation': {key: self.advanced[key].get() for key in ('caption_provider', 'caption_model')},
                   'answer_language': self.content_language('answer'), 'hotkeys': self.hotkeys,
                   'layout': {key: self.advanced[key].get() for key in SAVED_LAYOUT_KEYS}}
         try:
@@ -265,7 +268,7 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
             return False
         return True
 
-    def check_gemini(self, probe=False, all_keys=False):
+    def check_gemini(self, probe=False, all_keys=False, inline=False):
         if self.check_busy:
             return
         key, model = self.key.get().strip(), self.model.get().strip()
@@ -279,6 +282,7 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
         revision = self.check_revision
         self.check_busy = True
         self.key_status.set('正在测试所选模型…' if probe else '正在检测接口…')
+        if inline: self.inline_api_report = '正在检测接口…'
         base = self.advanced['lm_base'].get()
 
         def check():
@@ -314,7 +318,9 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
                     results.append(name + '：检测未通过，' + (str(exc).replace(secret, '[KEY]') if secret else str(exc)))
             message = '\n'.join(results)
             self.events.put(('key_check', (revision, message)))
-            if all_keys:
+            if inline:
+                self.events.put(('inline_check_report', message))
+            elif all_keys:
                 self.events.put(('all_check_report', (revision, message)))
         threading.Thread(target=check, daemon=True).start()
 
@@ -443,9 +449,10 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
         self.output_parts.append(text)
 
     def render_live_transcript(self):
-        pending = '\n\n'.join(self.locale.t('[' + source + ' · 识别中，文字可能修订]') + '\n' + self.captions.body(value['text'], draft=True)
-                              for source, value in self.live_drafts.items())
-        visible = self.captions.transcript(self.live_text)
+        from caption_translation import display_transcript
+        pending = '\n\n'.join(self.captions.body(value['text'], draft=True)
+                              for value in self.live_drafts.values())
+        visible = display_transcript(self.captions.transcript(self.live_text))
         self.transcript_view = visible + ('\n\n' + pending if pending else '')
 
     def show_live_transcript(self):
@@ -456,7 +463,8 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
         self.follow_live = False
         index = self.selected_transcript
         if 0 <= index < len(self.transcript_records):
-            self.put_text(self.captions.transcript(self.transcript_records[index]['text']), replace=True, target='transcript')
+            from caption_translation import display_transcript
+            self.put_text(display_transcript(self.captions.transcript(self.transcript_records[index]['text'])), replace=True, target='transcript')
 
     def remember_transcript(self, text, request_id, select=True):
         record = next((r for r in self.transcript_records if r['id'] == request_id), None)
@@ -503,7 +511,9 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
                 self.root.after(60, self.poll)
 
     def handle_event(self, kind, text):
-        if kind == 'caption_result':
+        if kind == 'caption_models':
+            self.caption_models.receive(text)
+        elif kind == 'caption_result':
             self.captions.receive(text)
         elif kind == 'screenshot':
             self.receive_screenshot(text)
@@ -589,6 +599,8 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
             self.check_busy = False
             if revision == self.check_revision:
                 self.key_status.set(message)
+        elif kind == 'inline_check_report':
+            self.inline_api_report = text
         elif kind == 'all_check_report':
             revision, message = text
             if revision == self.check_revision:

@@ -12,13 +12,14 @@
   'Clear Q&A memory':'清空问答记忆',
   'Keeps your notes, transcript and visible answers. Already sent content cannot be recalled from a provider.':'保留资料、转录和已显示的回答。已发送给服务商的内容无法撤回。',
   'Apply changes':'应用修改','Discard draft':'放弃草稿'
-  ,'Prompt':'提示词（Prompt）','Describe the role, task and answer format. Put background facts in the sources below.':'填写 AI 的角色、任务和回答格式；背景事实放在下方资料中。',
+  ,'Prompt':'提示词','Describe the role, task and answer format. Put background facts in the sources below.':'填写 AI 的角色、任务和回答格式；背景事实放在下方资料中。',
   'Prompt templates · saved on this computer':'提示词模板 · 保存在本机','Saved templates':'已保存的模板',
   'Load into editor':'载入编辑区','Delete template':'删除模板','Template name':'模板名称','Save as template':'保存为模板',
   'Built-in scenarios':'内置场景','Use preset':'使用预设',
   'Loads an editable draft. Apply it to use it for future requests.':'载入为可编辑草稿，应用后用于后续请求。'
  });
- const local=(zh,en)=>language==='zh'?zh:en;
+ const messages=new Map();
+ const local=(zh,en)=>{messages.set(zh,[zh,en]);messages.set(en,[zh,en]);return language==='zh'?zh:en};
  const presetControls=[];let presetArmed='';
  for(const [prefix,target] of [['builtin','context-instructions'],['settings-builtin','instructions']]){
   const box=document.createElement('div');box.className='builtin-prompts';
@@ -55,8 +56,10 @@
  const settingsApply=document.createElement('button');settingsApply.dataset.i='Apply changes';
  const settingsStatus=document.createElement('span');settingsStatus.setAttribute('role','status');
  settingsBar.append(settingsApply,settingsStatus);$('context').append(settingsBar);
- function status(message){notice=message;$('context-edit-status').textContent=message;settingsStatus.textContent=message;}
+ function status(message,remember=true){if(remember)notice=message;$('context-edit-status').textContent=message;settingsStatus.textContent=message;}
  function render(s){
+  if(messages.has(notice))notice=messages.get(notice)[language==='zh'?0:1];
+  for(const id of ['prompt-status','context-edit-status']){const el=$(id),pair=messages.get(el.textContent);if(pair)el.textContent=pair[language==='zh'?0:1]}
   for(const key of keys)for(const id of [key,'context-'+key]){
    const el=$(id),value=draft.has(key)?draft.get(key):s[key]||'';
    if(el.value!==value)el.value=value;
@@ -72,7 +75,7 @@
   $('context-analysis').textContent=s.summary||local('暂无分析。可先添加资料，再点击“先分析资料”。','No analysis yet. Add sources, then choose Analyze first.');
   $('context-apply').disabled=settingsApply.disabled=!!flight||!draft.size;
   $('context-reload').disabled=!!flight||!draft.size;
-  if(!flight)status(notice|| (draft.size?local('有未应用的修改；点击应用，或回答时自动应用。','Unapplied changes. Apply now, or they will be applied before answering.'):local('当前资料已应用。加密保存后，下次启动可继续使用。','Current context is applied. Save encrypted to reuse it after restarting.')));
+  if(!flight)status(notice|| (draft.size?local('有未应用的修改；点击应用，或回答时自动应用。','Unapplied changes. Apply now, or they will be applied before answering.'):local('当前资料已应用。加密保存后，下次启动可继续使用。','Current context is applied. Save encrypted to reuse it after restarting.')),false);
   renderTemplates(s);
   renderPresets(s);
  }

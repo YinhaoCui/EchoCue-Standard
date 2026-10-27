@@ -8,6 +8,9 @@ const pending = new Map();
 let noticeUntil = 0;
 function notice(text){ $('status').textContent=text; noticeUntil=Date.now()+4000; }
 const translations = {
+ 'Caption translation model':'字幕翻译模型','Translation provider':'翻译平台','Translation model':'翻译模型','Translation model ID':'翻译模型 ID',
+ 'Refresh translation models':'刷新翻译模型','Auto · prefer fast models':'自动 · 优先快速模型','Same provider as answers':'与回答使用相同平台',
+ 'Independent of answers. Uses the lowest supported thinking level. API keys are shared with the selected provider settings.':'独立于回答模型，自动使用最低支持的思考档；API Key 沿用所选平台的配置。',
  Transparency:'透明度',Taskbar:'任务栏','Tray icon':'托盘图标',Analysis:'分析结果',Screenshots:'截图',On:'已开启',Off:'已关闭',
  'Background':'背景效果','Microphone device':'麦克风设备','Check APIs':'检测 API','Edit transcript':'编辑转录','Vocabulary':'术语词典','Export session':'导出会话',
  'Transcript finalization':'转录定稿速度','Incremental context':'增量上下文','Request timeout':'请求超时','Output tokens':'输出 Token',
@@ -33,7 +36,10 @@ const translations = {
  'Smaller text':'缩小文字','Bold text':'文字加粗','Text outline':'文字描边','Text color':'文字颜色','Panel color':'面板颜色','Larger text':'放大文字','Drag to resize · double-click to reset':'拖动调整大小 · 双击恢复默认',
  Layout:'布局',Presets:'预设',Save:'保存','Text and panels':'文字与面板','Reset layout':'恢复默认布局',Window:'窗口',Session:'会话',
  'Preset name':'预设名称',Default:'默认',Compact:'紧凑','Large text':'大字','Delete preset':'删除预设',
- 'Interface style':'界面风格','Classic Glass':'经典玻璃','Midnight Studio':'深色工作台',
+ 'Interface style':'界面风格','Interface language':'界面语言','Classic Glass':'经典玻璃','Midnight Studio':'深色工作台','Cosmic Gravity':'宇宙引力',
+ 'Default model':'默认模型',
+ 'English':'英语','Chinese':'中文','Coding':'编程','Shortcuts ready':'快捷键已就绪',
+ 'LM Studio URL':'LM Studio 地址',
  'Model options':'模型高级选项','Generation options':'生成与上下文选项','Window appearance':'窗口外观',
  'Resize transcript and answer':'调整转录与回答区域'
  ,'Global shortcuts':'全局快捷键','Save and apply':'保存并应用','Restore defaults':'恢复默认',
@@ -64,6 +70,7 @@ function setLanguage(value) {
  document.querySelectorAll('.listen-toolbar [data-i]').forEach(el => el.title=el.textContent);
  document.querySelectorAll('[data-title]').forEach(el => el.title=language==='zh'?t(el.dataset.title)+' · 双击恢复默认':el.dataset.title+' · double-click to reset');
  $('preset-name').placeholder=t('Preset name');presetSignature='';
+ $('model').placeholder=t('Default model');
  document.querySelectorAll('[data-font]').forEach(el => {el.title=t(el.dataset.step<0?'Smaller text':'Larger text');el.setAttribute('aria-label',el.title)});
  document.querySelectorAll('.splitter,.side-grip').forEach(el => el.title=t('Drag to resize · double-click to reset'));
 }
@@ -91,15 +98,20 @@ function view(name) {
  $(name==='listen'?'listen-status':'settings-status').appendChild(document.querySelector('.statusbar'));
  $('settings').hidden=name!=='settings'; $('listen').hidden=name!=='listen';
  document.querySelectorAll('[data-view]').forEach(el=>el.classList.toggle('active',el.dataset.view===name));
+ window.workbench?.syncContext();
 }
-function midnightColumns(){return document.body.dataset.theme==='midnight'&&matchMedia('(min-width:1101px)').matches}
+function darkWorkspace(){return ['midnight','cosmic','workbench'].includes(document.body.dataset.theme)}
+function midnightColumns(){return darkWorkspace()&&matchMedia('(min-width:1101px)').matches}
 function applyTheme(value){
- const theme=value==='midnight'?'midnight':'classic';
- for(const id of ['ui_theme','live-ui-theme'])if($(id)?.options.length)$(id).value=theme;
- if(document.body.dataset.theme===theme)return;
+ const choice=['classic','cosmic','workbench'].includes(value)?value:'workbench';
+ const theme=choice==='cosmic'?'workbench':choice,palette=choice==='cosmic'?'gold':'light';
+ for(const id of ['ui_theme','live-ui-theme'])if($(id)?.options.length)$(id).value=choice;
+ if(document.body.dataset.theme===theme&&document.body.dataset.palette===palette)return;
  document.body.dataset.theme=theme;
+ document.body.dataset.palette=palette;
+ window.workbench?.themeChanged();
  for(const id of ['listen_text_color','listen_panel_color'])applyColor(id,pending.get(id)??current?.options?.[id]);
- requestAnimationFrame(()=>{applyLayout(...layout);scheduleShape()});
+ requestAnimationFrame(()=>{applyLayout(...layout);positionMenus();scheduleShape()});
 }
 function textStream(id,value) {
  // Both panels show Markdown; renderMarkdown redraws only the blocks that changed.
@@ -132,6 +144,7 @@ async function save(id,value) {
  finally { setTimeout(()=>pending.delete(id),500); }
 }
 const fields=['ui_theme','listen_transparency','listen_text_color','listen_panel_color','background_mode','microphone','asr_pause','incremental_context','deadline','max_output','provider','model','key','effort','thinking_policy','answer_mode','source','device','asr_engine','caption','answer','question_mode','warm_context','speculate','history','profile','documents','instructions','lm_base','language'];
+fields.push('caption_model');
 fields.forEach(id=>$(id).addEventListener('change',async()=>{
  if(['profile','documents','instructions'].includes(id))return;
  const el=$(id), value=el.type==='checkbox'?el.checked:el.value;
@@ -143,6 +156,17 @@ fields.forEach(id=>$(id).addEventListener('change',async()=>{
 $('model-picker').onchange=async()=>{
  $('model').value=$('model-picker').value;
  await save('model',$('model-picker').value);
+};
+$('caption_provider').onchange=async()=>{
+ const provider=$('caption_provider').value;
+ $('caption_model').value='';
+ pending.set('caption_provider',provider);pending.set('caption_model','');
+ try{await command('settings',{values:{caption_provider:provider,caption_model:''}})}
+ finally{setTimeout(()=>{pending.delete('caption_provider');pending.delete('caption_model')},500)}
+};
+$('caption-model-picker').onchange=()=>{
+ $('caption_model').value=$('caption-model-picker').value;
+ save('caption_model',$('caption_model').value);
 };
 [['live-caption','caption'],['live-answer','answer'],['live-mode','question_mode']].forEach(([id,target])=>{
  $(id).onchange=()=>save(target,$(id).value);
@@ -172,7 +196,7 @@ document.querySelectorAll('[data-native]').forEach(el=>el.onclick=()=>{
  else if(fn==='close')command('close');
 });
 document.querySelectorAll('[data-copy]').forEach(el=>el.onclick=async()=>{
- try{const source=$(el.dataset.copy);await navigator.clipboard.writeText(source._mdSource??source.textContent);el.textContent=t('Copied');setTimeout(()=>el.textContent=t('Copy'),1000)}
+ try{const source=el.dataset.copy==='output'&&document.body.dataset.theme==='workbench'?$('workbench-output'):$(el.dataset.copy);await navigator.clipboard.writeText(source._mdSource??source.textContent);el.textContent=t('Copied');setTimeout(()=>el.textContent=t('Copy'),1000)}
  catch{ $('status').textContent=language==='zh'?'请选择正文后按 Ctrl+C。':'Select the text and press Ctrl+C.'; }
 });
 $('more').onclick=()=>toggleMenu('more-menu');
@@ -184,7 +208,23 @@ function toggleMenu(id,open=id?$(id).hidden:false){
   const show=menu===id&&open;
   $(menu).hidden=!show;$(button).setAttribute('aria-expanded',String(show));
  }
+ positionMenus();scheduleShape();
 }
+function positionMenus(){
+ for(const [id,anchor] of Object.entries(MENUS)){
+  const menu=$(id);if(menu.hidden)continue;
+  const button=$(anchor).getBoundingClientRect(),parent=menu.offsetParent.getBoundingClientRect();
+  const above=document.body.dataset.theme==='workbench'||button.bottom>innerHeight/2;
+  const space=Math.max(40,above?button.top-16:innerHeight-button.bottom-16);
+  menu.style.maxHeight=Math.min(520,space)+'px';menu.style.maxWidth=(innerWidth-16)+'px';
+  const rect=menu.getBoundingClientRect();
+  menu.style.right='auto';menu.style.bottom='auto';
+  menu.style.left=(Math.max(8,Math.min(button.right-rect.width,innerWidth-rect.width-8))-parent.left)+'px';
+  menu.style.top=((above?Math.max(8,button.top-rect.height-8):button.bottom+8)-parent.top)+'px';
+ }
+}
+addEventListener('resize',positionMenus);
+document.addEventListener('scroll',positionMenus,true);
 document.addEventListener('pointerdown',event=>{
  if(!event.target.closest('.menu,#more,#layout-button'))toggleMenu(null);
 });
@@ -262,9 +302,10 @@ document.addEventListener('keydown',event=>{
 function render(s) {
  if(!s.provider)return;
  current=s;
- if(!pending.has('ui_theme'))applyTheme(s.options.ui_theme||'classic');
- const styles=[{value:'classic',text:t('Classic Glass')},{value:'midnight',text:t('Midnight Studio')}];
- for(const id of ['ui_theme','live-ui-theme'])choose(id,styles,pending.get('ui_theme')||s.options.ui_theme||'classic');
+ if(language!==s.language)setLanguage(s.language);
+ if(!pending.has('ui_theme'))applyTheme(s.options.ui_theme||'workbench');
+ const styles=[{value:'workbench',text:t('Dual-track Workbench')},{value:'cosmic',text:t('Workbench · Black Gold')},{value:'classic',text:t('Classic Glass')}];
+ for(const id of ['ui_theme','live-ui-theme'])choose(id,styles,pending.get('ui_theme')||s.options.ui_theme||'workbench');
  if(document.activeElement!==$('listen_transparency')&&!pending.has('listen_transparency'))applyTransparency(s.options.listen_transparency||12);
  for(const id of ['listen_text_color','listen_panel_color'])
   if(document.activeElement!==$(id)&&!pending.has(id))applyColor(id,s.options[id]);
@@ -282,6 +323,18 @@ function render(s) {
  if(language!==s.language)setLanguage(s.language);
  choose('language',['en','zh'].map(x=>({value:x,text:x==='en'?'English':'中文'})),s.language);
  choose('provider',s.providers,s.provider);input('model',s.model);
+ const captionConfig=s.caption_translation||{};
+ choose('caption_provider',[{value:'',text:t('Same provider as answers')},...s.providers],s.options.caption_provider||'');
+ input('caption_model',s.options.caption_model||'');
+ $('caption_model').placeholder=t('Auto · prefer fast models');
+ if(!pending.has('caption_provider')&&!pending.has('caption_model')){
+  const models=[...new Set(captionConfig.models||[])].filter(Boolean),selected=s.options.caption_model||'';
+  if(selected&&!models.includes(selected))models.push({value:selected,text:selected+(language==='zh'?'（自定义）':' (custom)')});
+  const resolved=captionConfig.resolved_model;
+  choose('caption-model-picker',[{value:'',text:t('Auto · prefer fast models')+(resolved?' · '+resolved:'')},...models],selected);
+ }
+ $('caption-model-status').textContent=captionConfig.status||'';
+ document.querySelector('[data-action="refresh_caption_models"]').disabled=!!captionConfig.loading;
  $('model-status').textContent=s.model_status||'';
  if(!pending.has('model')&&!pending.has('provider')){
   const models=[...new Set(s.models||[])].filter(Boolean);
@@ -291,12 +344,13 @@ function render(s) {
  }
  choose('effort',s.efforts,s.effort);
  choose('thinking_policy',['自动','开启','关闭'],s.options.thinking_policy);
- choose('answer_mode',['快速','推理','Coding'],s.answer_mode);
+ choose('answer_mode',['快速','推理',{value:'Coding',text:t('Coding')}],s.answer_mode);
  choose('source',['电脑','麦克风','电脑 + 麦克风'],s.options.source);
  choose('device',s.devices.map((name,index)=>({value:String(index),text:name})),String(s.device));
  choose('asr_engine',s.engines,s.options.asr_engine);
- for(const id of ['caption','live-caption'])choose(id,['原文','English','中文','中英双语'],s.caption);
- for(const id of ['answer','live-answer'])choose(id,['English','中文','中英双语'],s.answer);
+ const readingLanguages=[{value:'English',text:t('English')},{value:'中文',text:t('Chinese')},'中英双语'];
+ for(const id of ['caption','live-caption'])choose(id,['原文',...readingLanguages],s.caption);
+ for(const id of ['answer','live-answer'])choose(id,readingLanguages,s.answer);
  for(const id of ['question_mode','live-mode'])choose(id,['长问题','快速问答'],s.options.question_mode);
  for(const id of ['warm_context'])choose(id,['开启','关闭'],s.options[id]);
  choose('speculate',['仅疑问句','每段定稿','关闭'],s.options.speculate);
@@ -309,7 +363,7 @@ function render(s) {
  $('dot').classList.toggle('on',s.listening);$('live-label').textContent=t(s.listening?'Listening':'Ready');
  $('pause').textContent=t(s.listening?'Pause':'Start transcription');$('pause').dataset.icon=s.listening?'pause-fill':'play-fill';
  $('prepare').disabled=s.preparing;
- if(Date.now()>noticeUntil)$('status').textContent=s.status;
+ if(Date.now()>noticeUntil)$('status').textContent=t(s.status);
  $('model-badge').textContent=label(s.provider)+' / '+(s.model||'Default');
  $('job-count').textContent=s.jobs.filter(j=>!j.done).length+(language==='zh'?' 个回答进行中':' active answers');
  $('usage').textContent=language==='en'?s.usage.replaceAll('本次','session'):s.usage;
@@ -323,6 +377,8 @@ function render(s) {
  renderReadingLayout(s.options);
  renderPresets(s.options.listen_presets);
  renderHotkeys(s);
+ window.workbench?.render(s);
+ window.settingsTools?.render(s);
  if(s.navigation_request?.id&&s.navigation_request.id!==lastNavigation){lastNavigation=s.navigation_request.id;if(s.navigation_request.section==='shortcuts')goToShortcuts()}
 
 }
@@ -361,14 +417,26 @@ poll();
 // not clipped (edges stay anti-aliased); everywhere else, clicks reach the desktop.
 // Drag bars report their whole bar, so a thin handle is still easy to grab.
 let lastShape='', shapeScheduled=false;
+function isKeyboardEditor(el){
+ return el instanceof HTMLElement && !el.disabled && !el.readOnly &&
+  (el.isContentEditable || el.tagName==='TEXTAREA' || (el.tagName==='INPUT' && ['text','password','search','email','url','tel','number'].includes(el.type)));
+}
+document.addEventListener('focusin',scheduleShape);
+document.addEventListener('focusout',scheduleShape);
 function syncWindowShape(){
  shapeScheduled=false;
  placeWindowResizeTargets();
  if(!window.pywebview?.api?.shape)return;
- const rects=[...document.querySelectorAll('.capsule,.workspace-rail,#settings,#listen>.glass,#listen>.splitter,.side-grip,.window-resize-edge,.statusbar,.menu,.drawer,.resize-grip')]
+ const rects=[...document.querySelectorAll('.capsule,.workspace-rail,#settings,#listen>.glass,#listen>.splitter,.side-grip,.window-resize-edge,.statusbar,.menu,.drawer,.resize-grip,.image-viewer')]
   .filter(el=>el.getClientRects().length && getComputedStyle(el).visibility!=='hidden')
   .map(el=>{const r=el.getBoundingClientRect();return [r.x,r.y,r.width,r.height,parseFloat(getComputedStyle(el).borderTopLeftRadius)||0]});
- const layout={width:innerWidth,rects}, signature=JSON.stringify(layout);
+ // Showing a menu with an input must not activate the window; editing may.
+ const editor=document.activeElement;
+ const editing=!!document.querySelector('.image-viewer:not([hidden])') || (isKeyboardEditor(editor) && !editor.closest('details:not([open])') && editor.getClientRects().length && getComputedStyle(editor).visibility!=='hidden');
+ const frost_rects=[...document.querySelectorAll('.capsule,#listen>.glass')]
+  .filter(el=>el.getClientRects().length&&getComputedStyle(el).visibility!=='hidden')
+  .map(el=>{const r=el.getBoundingClientRect();return [r.x,r.y,r.width,r.height,parseFloat(getComputedStyle(el).borderTopLeftRadius)||0]});
+ const layout={width:innerWidth,rects,view:document.body.dataset.view,frost:Number($('live-listen-frost')?.value||0),frost_rects,mouse_only:document.body.dataset.view==='listen'&&!editing,keyboard_editing:document.body.dataset.view==='listen'&&!!editing}, signature=JSON.stringify(layout);
  if(signature===lastShape)return;
  window.pywebview.api.shape(layout).then(applied=>{if(applied)lastShape=signature;else setTimeout(scheduleShape,250)}).catch(()=>{lastShape='';setTimeout(scheduleShape,250)});
 }
@@ -376,7 +444,7 @@ function scheduleShape(){if(!shapeScheduled){shapeScheduled=true;requestAnimatio
 addEventListener('pywebviewready',scheduleShape);
 addEventListener('resize',scheduleShape);
 new ResizeObserver(scheduleShape).observe(document.querySelector('.shell'));
-new MutationObserver(scheduleShape).observe(document.querySelector('.shell'),{attributes:true,subtree:true,attributeFilter:['hidden','class']});
+new MutationObserver(scheduleShape).observe(document.querySelector('.shell'),{attributes:true,subtree:true,attributeFilter:['hidden','class','open']});
 scheduleShape();
 
 // Match the reference's two independent columns rather than equal-height rows.
@@ -444,10 +512,10 @@ hotkeySection.append(hotkeyButtons);const hotkeyEditStatus=document.createElemen
 $('preferences').after(hotkeySection);
 const hotkeyNav=document.querySelector('#settings [data-action="hotkeys"]');hotkeyNav.dataset.section='shortcuts';hotkeyNav.classList.add('side');document.querySelector('#settings .side-bottom').before(hotkeyNav);
 let hotkeyDraft=false,hotkeyBusy=false,lastNavigation='';
-function goToShortcuts(){toggleMenu(null);view('settings');requestAnimationFrame(()=>{$('shortcuts').scrollIntoView({behavior:'smooth',block:'start'});document.querySelectorAll('[data-section]').forEach(el=>el.classList.toggle('active',el.dataset.section==='shortcuts'))})}
+function goToShortcuts(){toggleMenu(null);view('settings');if(document.body.dataset.theme==='workbench'){window.workbench?.selectSection('shortcuts');return}requestAnimationFrame(()=>{$('shortcuts').scrollIntoView({behavior:'smooth',block:'start'});document.querySelectorAll('[data-section]').forEach(el=>el.classList.toggle('active',el.dataset.section==='shortcuts'))})}
 function renderHotkeys(s){
  for(const input of document.querySelectorAll('[data-hotkey]')){if(!hotkeyDraft&&!hotkeyBusy)input.value=s.hotkeys?.[input.dataset.hotkey]||'';input.disabled=hotkeyBusy}
- $('hotkey-status').textContent=s.hotkey_status||'';
+ $('hotkey-status').textContent=t(s.hotkey_status||'');
  $('hotkeys-save').disabled=$('hotkeys-default').disabled=hotkeyBusy;
 }
 $('hotkeys-default').onclick=()=>{for(const input of document.querySelectorAll('[data-hotkey]'))input.value=current?.hotkey_defaults?.[input.dataset.hotkey]||'';hotkeyDraft=true;$('hotkey-edit-status').textContent=language==='zh'?'默认值已载入，保存后生效。':'Defaults loaded. Save to apply them.'};
@@ -490,9 +558,10 @@ $('preferences').querySelector('details').open=true;
 const settingsScroller=document.querySelector('.settings-content');
 let settingsScrollFrame=0;
 settingsScroller.addEventListener('scroll',()=>{
- if(settingsScrollFrame)return;
+ if(settingsScrollFrame||document.body.dataset.theme==='workbench')return;
  settingsScrollFrame=requestAnimationFrame(()=>{
   settingsScrollFrame=0;
+  if(document.body.dataset.theme==='workbench')return;
   const top=settingsScroller.getBoundingClientRect().top+90;
   const links=[...document.querySelectorAll('button[data-section]')];
   const active=links.filter(link=>$(link.dataset.section).getBoundingClientRect().top<=top).at(-1)||links[0];
@@ -533,7 +602,10 @@ async function renderContextImages(images){
    if(!response.ok)throw Error('Image unavailable');
    const blob=await response.blob();if(contextImageSignature!==signature)return;
    const url=URL.createObjectURL(blob);contextImageUrls.push(url);
-   const img=document.createElement('img');img.src=url;img.alt=item.title;figure.prepend(img);
+   const img=document.createElement('img');img.src=url;img.alt=item.title;img.tabIndex=0;img.setAttribute('role','button');
+   img.ondblclick=()=>window.settingsTools?.openImage(item.id);
+   img.onkeydown=e=>{if(e.key==='Enter')window.settingsTools?.openImage(item.id)};
+   figure.prepend(img);
   }catch{caption.textContent=item.title+' — '+(language==='zh'?'预览不可用':'Preview unavailable')}
  }
 }
@@ -556,7 +628,12 @@ function placeWindowResizeTargets(){
   const edge=target.dataset.resizeEdge,corner=edge.includes('-'),size=edge==='bottom-right'?22:corner?12:7;
   const width=corner?size:edge==='top'||edge==='bottom'?Math.max(0,r.right-r.left-34):size;
   const height=corner?size:edge==='left'||edge==='right'?Math.max(0,r.bottom-r.top-24):size;
-  const x=edge.includes('right')?r.right-width:edge==='top'||edge==='bottom'?r.left+12:r.left;
+  let x=edge.includes('right')?r.right-width:edge==='top'||edge==='bottom'?r.left+12:r.left;
+  // Classic panels have their own width grips; keep window edges in the outer gutter.
+  if(document.body.dataset.theme==='classic'&&!corner){
+   if(edge==='left')x=Math.max(0,r.left-width);
+   if(edge==='right')x=Math.min(innerWidth-width,r.right);
+  }
   const y=edge.includes('bottom')?r.bottom-height:edge==='left'||edge==='right'?r.top+12:r.top;
   Object.assign(target.style,{left:x+'px',top:y+'px',right:'auto',bottom:'auto',width:width+'px',height:height+'px'});
  }
@@ -752,7 +829,11 @@ const COLOR_DEFAULTS={listen_text_color:'#ffffff',listen_panel_color:'#213953'};
 const hexRgb=hex=>[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16));
 function applyColor(id,value){
  let hex=/^#[0-9a-f]{6}$/i.test(value||'')?value.toLowerCase():COLOR_DEFAULTS[id];
- if(id==='listen_panel_color'&&document.body.dataset.theme==='midnight'&&hex===COLOR_DEFAULTS[id])hex='#22262b';
+ const follow=(pending.get('listen_theme_colors')??current?.options?.listen_theme_colors??'1')==='1';
+ if(follow){
+  const light=document.body.dataset.theme==='workbench'&&document.body.dataset.palette!=='gold';
+  hex=id==='listen_text_color'?(light?'#202c3d':document.body.dataset.theme==='classic'?'#ffffff':'#f0e9da'):(light?'#ffffff':document.body.dataset.theme==='classic'?'#213953':'#151619');
+ }
  $(id).value=hex;
  const root=document.documentElement.style;
  if(id==='listen_text_color')root.setProperty('--listen-text',hex);
@@ -782,7 +863,7 @@ document.querySelectorAll('[data-toggle]').forEach(el=>el.onclick=()=>{
  const id=el.dataset.toggle,value=document.body.dataset[id==='listen_text_bold'?'textBold':'textOutline']==='1'?'0':'1';
  applyToggle(id,value);save(id,value);
 });
-for(const id of ['listen_text_color','listen_panel_color'])$(id).addEventListener('input',()=>applyColor(id,$(id).value));
+for(const id of ['listen_text_color','listen_panel_color'])$(id).addEventListener('input',()=>{pending.set('listen_theme_colors','0');save('listen_theme_colors','0');applyColor(id,$(id).value)});
 // Double-click a color swatch to restore its default.
 for(const id of ['listen_text_color','listen_panel_color'])$(id).closest('label').addEventListener('dblclick',event=>{
  event.preventDefault();applyColor(id,COLOR_DEFAULTS[id]);save(id,COLOR_DEFAULTS[id]);
@@ -812,6 +893,9 @@ function currentLook(){
 }
 async function applyLook(values){
  const look={...LAYOUT_DEFAULTS,...values};
+ // Explicit colors in existing presets remain authoritative; Default follows the theme.
+ look.listen_theme_colors=values.listen_panel_color||values.listen_text_color?'0':'1';
+ pending.set('listen_theme_colors',look.listen_theme_colors);
  applyTransparency(look.listen_transparency);
  applyColor('listen_text_color',look.listen_text_color);applyColor('listen_panel_color',look.listen_panel_color);
  for(const id of TOGGLES)applyToggle(id,look[id]);
@@ -863,4 +947,4 @@ $('preset-form').addEventListener('submit',async event=>{
  await savePresets(next);presetSignature='';renderPresets();
  notice(zh?`已保存布局预设“${name}”。`:`Saved layout preset “${name}”.`);
 });
-$('layout-reset').onclick=()=>{applyLook({});if(document.body.dataset.theme==='midnight'){applyMidnightSplit(40);save('midnight_split','40')}toggleMenu(null)};
+$('layout-reset').onclick=()=>{applyLook({});if(darkWorkspace()){applyMidnightSplit(40);save('midnight_split','40')}toggleMenu(null)};

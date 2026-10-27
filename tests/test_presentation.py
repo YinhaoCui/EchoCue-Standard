@@ -9,11 +9,16 @@ from settings_state import presentation_value
 
 class PresentationValidationTests(unittest.TestCase):
     def test_valid_choices_and_split_limits(self):
-        self.assertEqual(presentation_value('ui_theme', 'midnight'), 'midnight')
+        self.assertEqual(presentation_value('ui_theme', 'workbench'), 'workbench')
+        self.assertEqual(presentation_value('ui_theme', 'midnight'), 'workbench')
+        self.assertEqual(presentation_value('ui_theme', 'cosmic'), 'cosmic')
         self.assertEqual(presentation_value('midnight_split', 65), '65')
+        self.assertEqual(presentation_value('listen_frost', 100), '100')
+        self.assertEqual(presentation_value('listen_theme_colors', '1'), '1')
         self.assertEqual(listen_layout('0,0,0,280,400'), '0,0,0,280,400')
         for key, value in [('ui_theme', 'other'), ('midnight_split', 'nan'),
-                           ('midnight_split', 24), ('midnight_split', 66)]:
+                           ('midnight_split', 24), ('midnight_split', 66),
+                           ('listen_frost', -1), ('listen_frost', 101), ('listen_theme_colors', 'yes')]:
             with self.subTest(key=key, value=value), self.assertRaises(ValueError):
                 presentation_value(key, value)
 
@@ -38,15 +43,17 @@ class PresentationSavingTests(unittest.TestCase):
         bridge.app = self.ui
         bridge.window_state = {}
         self.ui.remember_keys.set(False)
-        bridge.settings({'ui_theme': 'midnight', 'midnight_split': '47'})
+        bridge.settings({'ui_theme': 'cosmic', 'midnight_split': '47', 'listen_frost': '80', 'listen_theme_colors': '1'})
         payload = a.save_settings.call_args.args[1]
         self.assertNotIn('apis', payload)
-        self.assertEqual(payload['layout']['ui_theme'], 'midnight')
+        self.assertEqual(payload['layout']['ui_theme'], 'cosmic')
         self.assertEqual(payload['layout']['midnight_split'], '47')
         self.ui.saved = payload
         self.ui.init_advanced()
-        self.assertEqual(self.ui.advanced['ui_theme'].get(), 'midnight')
+        self.assertEqual(self.ui.advanced['ui_theme'].get(), 'cosmic')
         self.assertEqual(self.ui.advanced['midnight_split'].get(), '47')
+        self.assertEqual(self.ui.advanced['listen_frost'].get(), '80')
+        self.assertEqual(self.ui.advanced['listen_theme_colors'].get(), '1')
 
     def test_invalid_style_does_not_apply_other_changes(self):
         bridge = GlassBridge.__new__(GlassBridge)
@@ -54,11 +61,11 @@ class PresentationSavingTests(unittest.TestCase):
         bridge.window_state = {}
         with self.assertRaises(ValueError):
             bridge.settings({'ui_theme': 'unknown', 'midnight_split': '50'})
-        self.assertEqual(self.ui.advanced['ui_theme'].get(), 'classic')
+        self.assertEqual(self.ui.advanced['ui_theme'].get(), 'workbench')
         self.assertEqual(self.ui.advanced['midnight_split'].get(), '40')
         self.ui.saved = {'layout': {'ui_theme': 'broken', 'midnight_split': 'inf'}}
         self.ui.init_advanced()
-        self.assertEqual(self.ui.advanced['ui_theme'].get(), 'classic')
+        self.assertEqual(self.ui.advanced['ui_theme'].get(), 'workbench')
         self.assertEqual(self.ui.advanced['midnight_split'].get(), '40')
 
     def test_every_builtin_prompt_reaches_both_prompt_builders(self):

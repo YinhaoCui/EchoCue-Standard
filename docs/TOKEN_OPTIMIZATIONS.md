@@ -51,6 +51,6 @@ Synthetic live checks used `gpt-6-astra` and `gemini-3.8-flash-low`, both at low
 | Antigravity | 1 | 5,942 | 5 | 0 | 5.24 |
 | Antigravity | 2 | 6,249 | 5 | 0 | 1.87 |
 
-These are smoke checks, not a controlled before/after saving estimate. Reported input includes retained conversation tokens, even when the client sends only a patch. Incremental transmission does not mean the provider stops counting prior context. The previous [prompt-language benchmark](PROMPT_TOKEN_BENCHMARK_2026-10-17.md) remains a frozen record of the earlier revision and must not be relabeled as a measurement of these newer changes.
+These are smoke checks, not a controlled before/after saving estimate. Reported input includes retained conversation tokens, even when the client sends only a patch. Incremental transmission does not mean the provider stops counting prior context. Historical prompt-language measurements are not validation of the current release.
 
 Regression tests cover one-time preparation, retained translations, changed-image-only transport, full-image fallback, lossless history references, manual reasoning precedence, pause behavior and shortcut dispatch. Mocked capture checks do not establish physical audio-device compatibility.

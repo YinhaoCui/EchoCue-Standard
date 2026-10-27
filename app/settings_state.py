@@ -5,14 +5,25 @@ import providers
 from meeting_assistance import DEFAULTS as MEETING_DEFAULTS, OPTIONS as MEETING_OPTIONS
 from streaming_asr import ASR_MODELS, DEFAULT_ASR
 
-PRESENTATION_DEFAULTS = {'ui_theme': 'classic', 'midnight_split': '40'}
+PRESENTATION_DEFAULTS = {'ui_theme': 'workbench', 'midnight_split': '40', 'listen_frost': '35', 'listen_theme_colors': '1'}
 
 
 def presentation_value(key, value):
     """Validate non-secret interface choices shared by loading and the web bridge."""
     if key == 'ui_theme':
-        if value not in ('classic', 'midnight'):
+        if value == 'midnight':
+            return 'workbench'
+        if value not in ('classic', 'midnight', 'cosmic', 'workbench'):
             raise ValueError('Unknown interface style')
+        return value
+    if key == 'listen_frost':
+        value = int(value)
+        if not 0 <= value <= 100:
+            raise ValueError('Frost must be between 0 and 100')
+        return str(value)
+    if key == 'listen_theme_colors':
+        if value not in ('0', '1'):
+            raise ValueError('Theme colors must be on or off')
         return value
     if key == 'midnight_split':
         value = int(value)
@@ -26,6 +37,7 @@ DEFAULT_OPTIONS = {
     **PRESENTATION_DEFAULTS,
     **MEETING_DEFAULTS,
     'source': '电脑', 'asr_engine': DEFAULT_ASR, 'asr_pause': '快速 · 0.35 秒',
+    'caption_provider': '', 'caption_model': '',
     'gemini_route': '文字（先转录）', 'lm_base': 'http://127.0.0.1:1234/v1',
     **{option: '' for option in providers.MODEL_OPTIONS},
     'deadline': '不限时', 'max_output': '服务默认', 'content_policy': 'unrestricted',
@@ -61,6 +73,13 @@ class SettingsState:
         except Exception:
             self.prompt_templates_error = '模板文件读取失败；为保护已有内容，未覆盖原文件。'
         options = dict(self.saved.get('advanced', {}))
+        translation = self.saved.get('caption_translation', {})
+        if isinstance(translation, dict):
+            for key in ('caption_provider', 'caption_model'):
+                if isinstance(translation.get(key), str):
+                    options[key] = translation[key]
+        if options.get('caption_provider', '') not in ('', *providers.NAMES):
+            options['caption_provider'] = ''
         layout = self.saved.get('layout')
         if isinstance(layout, dict):
             options.update({key: str(layout[key]) for key in SAVED_LAYOUT_KEYS if key in layout})

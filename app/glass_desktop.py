@@ -40,6 +40,8 @@ def resize_rect(width, height, left=None, top=None):
 
 def host(url, token):
     import webview
+    activation_guard = [None]
+    surface_layout = [{}]
     class API:
         def drag(self):
             """Use the native Windows move loop for either toolbar."""
@@ -57,6 +59,21 @@ def host(url, token):
                 user.SendMessageW(window.native.Handle.ToInt64(), 0x00A1, 2, 0)
 
             window.native.Invoke(Action(move))
+
+        def shape(self, layout):
+            if not isinstance(layout, dict):
+                return False
+            surface_layout[0] = layout
+            if activation_guard[0] is not None:
+                from System import Action
+                def update_activation():
+                    policy = surface_layout[0]
+                    was_guarded = activation_guard[0].enabled
+                    activation_guard[0].set_enabled(policy.get('mouse_only') is True)
+                    if was_guarded and policy.get('keyboard_editing') is True:
+                        window.native.Activate()
+                window.native.BeginInvoke(Action(update_activation))
+            return True
 
         def resize(self, width, height, left=None, top=None):
             """Resize any edge; left/top drags also update the window origin."""
@@ -140,6 +157,9 @@ def host(url, token):
         import ctypes
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('EchoCue-Standard.Desktop')
         def initialize():
+            from window_activation import MouseActivationGuard
+            activation_guard[0] = MouseActivationGuard(window.native.Handle.ToInt64())
+            activation_guard[0].set_enabled(surface_layout[0].get("mouse_only") is True)
             window.native.Icon = Icon(str(ROOT / 'app/assets/echocue.ico'))
             tray[0] = Tray(ROOT / 'app/assets/echocue.ico', lambda: latest[0], pick, show_window)
         window.native.Invoke(Action(initialize))

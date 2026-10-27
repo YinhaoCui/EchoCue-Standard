@@ -1,14 +1,11 @@
 # Changelog
 
-## Unreleased
+## 1.0.1
 
-- Fix Midnight Studio resize behavior: add native outer-edge/corner resizing and make both inner panel edges share one divider without gaps from old saved widths.
-- Apply listening transparency to controls, title bar and sidebar backgrounds while retaining opaque text and icons.
-- Move shortcut editing into Settings, retaining validation, reset, persistence and registration feedback.
-
-- Add Midnight Studio as a second interface style, with persistent switching in Settings and Listen, a wide-screen transcript/answer split, and the full existing action set.
-- Reorganize Settings into a more spacious single column with advanced options grouped into expandable sections.
-- Add editable built-in system-prompt scenarios for General, Coding, Interview, Translate, Meeting, Learning and Writing.
+- Replace the retired Midnight Studio preview with the integrated light and Black Gold Workbench, with answer tabs and reorganized settings.
+- Add inline model diagnostics, image preview, caption model selection, and progressive bilingual captions with preserved source records.
+- Improve listening layout, window resizing, and focus handling.
+- Remove the obsolete standalone design prototype and screenshot-only browser test; retain behavioral regression coverage for Classic and both Workbench palettes.
 
 ## 1.0.0
 

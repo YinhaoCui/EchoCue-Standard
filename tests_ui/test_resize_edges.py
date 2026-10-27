@@ -5,7 +5,7 @@ import test_listen_page as listen
 
 @unittest.skipIf(listen.sync_playwright is None, 'playwright is not installed')
 class ResizeEdgesTests(unittest.TestCase):
-    theme = 'midnight'
+    theme = 'workbench'
     setUpClass = classmethod(listen.ListenPageTests.setUpClass.__func__)
     tearDownClass = classmethod(listen.ListenPageTests.tearDownClass.__func__)
     setUp = listen.ListenPageTests.setUp
@@ -43,7 +43,10 @@ class ResizeEdgesTests(unittest.TestCase):
                   [1175,835,85,55],[1185,835,80,55],[1175,845,85,50],[1185,845])
         for edge,rect in zip(edges,expected):
             self.drag('[data-resize-edge="' + edge + '"]', 5, 5)
-            self.page.wait_for_function('rect => JSON.stringify(window.__rects.at(-1)) === JSON.stringify(rect)',arg=rect)
+            try:
+                self.page.wait_for_function('rect => JSON.stringify(window.__rects.at(-1)) === JSON.stringify(rect)',arg=rect,timeout=3000)
+            except Exception:
+                self.fail(f'{edge}: expected {rect}, received {self.page.evaluate("window.__rects")}')
 
     def test_outer_panel_edges_delegate_to_window_without_creating_gaps(self):
         self.page.evaluate("window.__rects=[];window.pywebview={api:{bounds:()=>Promise.resolve({width:1180,height:840,left:80,top:50}),resize:(...rect)=>{window.__rects.push(rect);return Promise.resolve(true)}}}")

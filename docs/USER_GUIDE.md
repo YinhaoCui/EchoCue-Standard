@@ -4,7 +4,7 @@ See [Meeting assistance](MEETING_ASSISTANCE.md) for optional automatic answers, 
 
 ## Start and prepare
 
-For installation, run `EchoCue-Standard-1.0.0-Setup-x64.exe`. It installs for the current user, adds a Start-menu entry and offers a desktop shortcut. Uninstall from Windows Settings → Apps → Installed apps. User data stays in `%LOCALAPPDATA%\EchoCue Standard` after upgrades and uninstall; existing source/portable data is not automatically imported. To migrate, close the app and copy your source or portable `data` folder into `%LOCALAPPDATA%\EchoCue Standard\data` on the same Windows account. The installer includes Python, dependencies and transcription models, and installs WebView2 online if missing.
+For installation, run `EchoCue-Standard-1.0.1-Setup-x64.exe`. It installs for the current user, adds a Start-menu entry and offers a desktop shortcut. Uninstall from Windows Settings → Apps → Installed apps. User data stays in `%LOCALAPPDATA%\EchoCue Standard` after upgrades and uninstall; existing source/portable data is not automatically imported. To migrate, close the app and copy your source or portable `data` folder into `%LOCALAPPDATA%\EchoCue Standard\data` on the same Windows account. The installer includes Python, dependencies and transcription models, and installs WebView2 online if missing.
 
 Launch `EchoCue.exe` from the complete application folder. Source checkouts require dependency setup and launcher compilation first; see the [project README](../README.md). Select an answer provider, model, and supported reasoning options, then select audio devices and a transcription model independently.
 

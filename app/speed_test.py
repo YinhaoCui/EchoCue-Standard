@@ -54,6 +54,63 @@ def measure(generate, streaming=True):
             'output_tokens':normalized.get('output'),'usage':usage,'status':status,'error':error,'text':text}
 
 class SpeedTestUI:
+    def inline_speed_command(self, action, data):
+        """Use the existing benchmark without creating a Tk window."""
+        if not hasattr(self, 'speed_provider'):
+            self.speed_window = None
+            self.speed_model_box = self.speed_effort_box = None
+            self.speed_provider = tk.StringVar(master=self.root, value=self.provider.get())
+            self.speed_model = tk.StringVar(master=self.root)
+            self.speed_status = tk.StringVar(master=self.root)
+            self.speed_effort = tk.StringVar(master=self.root, value=self.reasoning_selection.get())
+            self.speed_mode = tk.StringVar(master=self.root, value=self.answer_mode.get())
+            self.speed_fast = tk.BooleanVar(master=self.root, value=self.fast_mode.get())
+            self.speed_models, self.speed_catalogs, self.speed_results = {}, {}, []
+            self.speed_editing = None
+            self.change_speed_provider()
+        if action == 'speed_cancel':
+            self.cancel_speed_test()
+            return
+        if getattr(self, 'speed_busy', False):
+            return
+        provider = data.get('provider', self.speed_provider.get())
+        if provider not in providers.NAMES:
+            raise ValueError('Unknown benchmark provider')
+        model = data.get('model', self.speed_model.get())
+        if not isinstance(model, str) or len(model) > 256 or any(ord(c) < 32 for c in model):
+            raise ValueError('Invalid benchmark model')
+        mode = data.get('mode', self.speed_mode.get())
+        if mode not in ('快速', '推理', 'Coding'):
+            raise ValueError('Invalid benchmark mode')
+        if provider != self.speed_provider.get():
+            self.speed_provider.set(provider)
+            self.change_speed_provider()
+        if 'model' in data:
+            self.speed_model.set(model.strip())
+        self.update_speed_effort()
+        if 'effort' in data:
+            if data['effort'] not in choices(provider, self.speed_model.get(), self.codex_capabilities):
+                raise ValueError('Invalid benchmark reasoning effort')
+            self.speed_effort.set(data['effort'])
+        self.speed_mode.set(mode)
+        if 'fast' in data:
+            self.speed_fast.set(data['fast'] is True)
+        if action == 'speed_start':
+            self.start_speed_test()
+        elif action == 'speed_refresh':
+            self.refresh_speed_models()
+
+    def inline_speed_state(self):
+        if not hasattr(self, 'speed_provider'):
+            return None
+        return dict(provider=self.speed_provider.get(), model=self.speed_model.get(),
+                    models=self.speed_catalog(self.speed_provider.get()),
+                    effort=self.speed_effort.get(),
+                    efforts=choices(self.speed_provider.get(), self.speed_model.get(), self.codex_capabilities),
+                    mode=self.speed_mode.get(), fast=self.speed_fast.get(),
+                    busy=getattr(self, 'speed_busy', False), status=self.speed_status.get(),
+                    results=getattr(self, 'speed_results', []))
+
     def show_speed_test(self):
         if getattr(self,'speed_window',None) and self.speed_window.winfo_exists():
             self.speed_window.deiconify(); self.speed_window.lift(); return
@@ -117,7 +174,7 @@ class SpeedTestUI:
             initial=self.advanced[self.cli_key(provider)].get()
         else:
             initial=self.model.get() if provider==self.api_editing else self.api_settings.get(provider,{}).get('model','')
-        self.speed_model_box['values']=self.speed_catalog(provider)
+        if self.speed_model_box is not None: self.speed_model_box['values']=self.speed_catalog(provider)
         self.speed_status.set(self.speed_catalog_note(provider))
         self.speed_model.set(self.speed_models.get(provider,initial))
         self.speed_effort.set(self.reasoning_settings.get(provider+'|'+self.speed_model.get(),'自动'))
@@ -125,7 +182,7 @@ class SpeedTestUI:
 
     def update_speed_effort(self):
         values=choices(self.speed_provider.get(),self.speed_model.get(),self.codex_capabilities)
-        self.speed_effort_box.configure(values=values,state='readonly' if len(values)>2 else 'disabled')
+        if self.speed_effort_box is not None: self.speed_effort_box.configure(values=values,state='readonly' if len(values)>2 else 'disabled')
         if self.speed_effort.get() not in values: self.speed_effort.set('自动')
 
     def speed_catalog_key(self, provider):
@@ -145,7 +202,7 @@ class SpeedTestUI:
         import audio_answer as a
         provider=self.speed_provider.get(); key=self.speed_key(provider)
         catalog_key=self.speed_catalog_key(provider)
-        self.speed_model_box['values']=self.speed_catalog(provider)
+        if self.speed_model_box is not None: self.speed_model_box['values']=self.speed_catalog(provider)
         window=self.speed_window
         base=self.advanced['lm_base'].get()
         if provider in a.API_PROVIDERS and provider!='LM Studio' and not key:
@@ -162,13 +219,13 @@ class SpeedTestUI:
 
     def receive_speed_models(self,value):
         window,provider,catalog_key,models,error=value
-        if self.speed_window is not window or not window.winfo_exists(): return
+        if self.speed_window is not window or (window is not None and not window.winfo_exists()): return
         if not error: self.speed_catalogs[catalog_key]=models
         if not error and models and provider==providers.ANTIGRAVITY:
             from antigravity_support import set_model_catalog
             set_model_catalog(models)
         if self.speed_provider.get()!=provider or catalog_key!=self.speed_catalog_key(provider):return
-        if not error:self.speed_model_box['values']=models
+        if not error and self.speed_model_box is not None:self.speed_model_box['values']=models
         self.speed_status.set(self.speed_catalog_note(provider)+' '+(error or f'已读取 {len(models)} 个模型；请选择或输入模型 ID。'))
 
     def cancel_speed_test(self):
@@ -228,7 +285,8 @@ class SpeedTestUI:
     def receive_speed_result(self,result):
         self.speed_busy=False
         self.speed_results.append(result)
-        if self.speed_window.winfo_exists():
+        self.speed_status.set(result['status']+' · '+(result['error'] or '已记录用量。测试只代表本次编程题；结果不自动执行或判定代码正确性。'))
+        if self.speed_window is not None and self.speed_window.winfo_exists():
             self.render_speed_results()
             self.speed_status.set(result['status']+' · '+(result['error'] or '已记录用量。测试只代表本次编程题；结果不自动执行或判定代码正确性。'))
 

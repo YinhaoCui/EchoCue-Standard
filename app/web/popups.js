@@ -49,7 +49,7 @@
   doc.body.appendChild(pop);
   place(pop, owner);
   owner.setAttribute('aria-expanded', 'true');
-  open = {pop, owner, onKey};
+  open = {pop, owner, onKey, ownerRect: owner.getBoundingClientRect()};
   reshape();
  }
 
@@ -184,7 +184,12 @@
  }, true);
  addEventListener('blur', () => closePopup(false));
  addEventListener('resize', () => closePopup(false));
- doc.addEventListener('scroll', event => { if (open && !open.pop.contains(event.target)) closePopup(false); }, true);
+ doc.addEventListener('scroll', event => {
+  if (!open || open.pop.contains(event.target)) return;
+  const r = open.owner.getBoundingClientRect();
+  // A completed focus scroll can deliver its event after the menu opens.
+  if (r.x !== open.ownerRect.x || r.y !== open.ownerRect.y) closePopup(false);
+ }, true);
 
  // ---- tooltips (title="...") -------------------------------------------
  // Move every title into data-tip the moment it is set, before the native

@@ -123,7 +123,7 @@ class FakeBridge:
                             bridge.state['status'] = 'rejected: %s' % exc
                             return self.reply(400, b'{}')
                         bridge.state['options'].update(look)
-                        for key in ('caption_provider', 'caption_model', 'dlx_url'):
+                        for key in ('caption_provider', 'caption_model'):
                             if key in values:
                                 bridge.state['options'][key] = values[key]
                         from meeting_assistance import OPTIONS

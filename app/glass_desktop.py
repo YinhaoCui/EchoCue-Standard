@@ -12,6 +12,20 @@ from app_paths import ROOT
 MIN_SIZE = (760, 560)
 
 
+def set_topmost(window, value, sync_activation=lambda: None):
+    """Apply pin and activation policy together on the native UI thread."""
+    from System import Action
+    def apply():
+        # Reassigning TopMost also changes z-order, even when its value is unchanged.
+        if window.on_top != bool(value):
+            window.on_top = bool(value)
+        sync_activation()
+    if window.native.InvokeRequired:
+        window.native.Invoke(Action(apply))
+    else:
+        apply()
+
+
 def resize_size(width, height):
     """Validate a requested logical window size and keep it above the minimum."""
     try:
@@ -42,6 +56,17 @@ def host(url, token):
     import webview
     activation_guard = [None]
     surface_layout = [{}]
+
+    def update_activation():
+        guard = activation_guard[0]
+        if guard is None:
+            return
+        policy = surface_layout[0]
+        was_guarded = guard.enabled
+        guard.set_enabled(bool(window.on_top and policy.get('mouse_only')))
+        if was_guarded and policy.get('keyboard_editing') is True:
+            window.native.Activate()
+
     class API:
         def drag(self):
             """Use the native Windows move loop for either toolbar."""
@@ -66,12 +91,6 @@ def host(url, token):
             surface_layout[0] = layout
             if activation_guard[0] is not None:
                 from System import Action
-                def update_activation():
-                    policy = surface_layout[0]
-                    was_guarded = activation_guard[0].enabled
-                    activation_guard[0].set_enabled(policy.get('mouse_only') is True)
-                    if was_guarded and policy.get('keyboard_editing') is True:
-                        window.native.Activate()
                 window.native.BeginInvoke(Action(update_activation))
             return True
 
@@ -151,6 +170,10 @@ def host(url, token):
     window.events.closed += closed
 
     def sync():
+        window.events.shown.wait()
+        window.events.loaded.wait()
+        if stopped.is_set():
+            return
         from System import Action
         from System.Drawing import Icon
         from tray_menu import Tray
@@ -159,7 +182,7 @@ def host(url, token):
         def initialize():
             from window_activation import MouseActivationGuard
             activation_guard[0] = MouseActivationGuard(window.native.Handle.ToInt64())
-            activation_guard[0].set_enabled(surface_layout[0].get("mouse_only") is True)
+            update_activation()
             window.native.Icon = Icon(str(ROOT / 'app/assets/echocue.ico'))
             tray[0] = Tray(ROOT / 'app/assets/echocue.ico', lambda: latest[0], pick, show_window)
         window.native.Invoke(Action(initialize))
@@ -172,7 +195,7 @@ def host(url, token):
                 if state.get('closing'):
                     window.destroy()
                     return
-                window.on_top = bool(state.get('native', {}).get('topmost'))
+                set_topmost(window, state.get('native', {}).get('topmost'), update_activation)
                 failures = 0
             except (OSError, ValueError):
                 failures += 1

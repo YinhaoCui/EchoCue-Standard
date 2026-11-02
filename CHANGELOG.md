@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.3
+
+- Remove the independent DLX service and Google Cloud Translation options, settings and bundled component; migrate previous selections to the matching built-in translator.
+- Restore normal window activation when unpinned; refresh the focus policy when toggling pin and avoid repeated z-order changes after unpinning.
+
 ## 1.0.2
 
 - Keep the text-question submit button accessible after resizing the editor; stabilize language-selection browser checks.

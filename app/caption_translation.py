@@ -431,18 +431,6 @@ def translate(inputs, text, language, cancel, app, on_partial=None):
         if on_partial is not None:
             on_partial(result)
         return result
-    from google_translation import PROVIDER as GOOGLE_TRANSLATE, translate as google_translate
-    from dlx_translation import PROVIDER as DLX, translate as dlx_translate
-    if inputs['provider'] == DLX:
-        result = dlx_translate(text, language, inputs['options']['dlx_url'], inputs['key'], cancel)
-        if on_partial is not None:
-            on_partial(result)
-        return result
-    if inputs['provider'] == GOOGLE_TRANSLATE:
-        result = google_translate(text, language, inputs['key'], cancel)
-        if on_partial is not None:
-            on_partial(result)
-        return result
     import audio_answer as a
     import providers
     provider, model, key = inputs['provider'], inputs['model'], inputs['key']

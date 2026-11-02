@@ -8,12 +8,6 @@ const pending = new Map();
 let noticeUntil = 0;
 function notice(text){ $('status').textContent=text; noticeUntil=Date.now()+4000; }
 const translations = {
- 'DLX service URL':'DLX 服务地址','DLX access token (optional)':'DLX 访问令牌（选填）',
- 'Save token':'保存令牌','Clear token':'清除令牌','Enter access token':'输入访问令牌',
- 'The bundled DLX starts automatically at the default local address. DLX is independent of DeepL.':'使用默认本机地址时自动启动内置 DLX。DLX 为独立项目，与 DeepL 官方分开。',
- 'Google Translation API Key':'谷歌翻译 API Key','Save API Key':'保存 Key','Clear API Key':'清除 Key',
- 'Configured; enter to replace':'已配置，输入可替换','Enter API Key':'输入 API Key',
- 'Enable Cloud Translation API and billing in Google Cloud. Charged by characters; separate from Gemini.':'请在 Google Cloud 启用 Cloud Translation API 和结算。按字符计费，与 Gemini 分开。',
  'Caption translation model':'字幕翻译模型','Translation provider':'翻译平台','Translation model':'翻译模型','Translation model ID':'翻译模型 ID',
  'Refresh translation models':'刷新翻译模型','Auto · prefer fast models':'自动 · 优先快速模型','Same provider as answers':'与回答使用相同平台',
  'Independent of answers. Uses the lowest supported thinking level. API keys are shared with the selected provider settings.':'独立于回答模型，自动使用最低支持的思考档；API Key 沿用所选平台的配置。',
@@ -153,7 +147,7 @@ async function save(id,value) {
  finally { setTimeout(()=>pending.delete(id),500); }
 }
 const fields=['ui_theme','listen_transparency','listen_text_color','listen_panel_color','background_mode','microphone','asr_pause','incremental_context','deadline','max_output','provider','model','key','effort','thinking_policy','answer_mode','source','device','asr_engine','caption','answer','question_mode','warm_context','speculate','history','profile','documents','instructions','lm_base','language'];
-fields.push('caption_model','dlx_url');
+fields.push('caption_model');
 fields.forEach(id=>$(id).addEventListener('change',async()=>{
  if(['profile','documents','instructions'].includes(id))return;
  const el=$(id), value=el.type==='checkbox'?el.checked:el.value;
@@ -173,24 +167,6 @@ $('caption_provider').onchange=async()=>{
  try{await command('settings',{values:{caption_provider:provider,caption_model:''}})}
  finally{setTimeout(()=>{pending.delete('caption_provider');pending.delete('caption_model')},500)}
 };
-async function saveGoogleTranslationKey(clear=false){
- const field=$('google-translation-key'),button=$(clear?'clear-google-translation-key':'save-google-translation-key');
- if(!clear&&!field.value.trim())return;
- button.disabled=true;
- try{await command('settings',{values:{google_translation_key:clear?'':field.value.trim()}});field.value=''}
- finally{button.disabled=false}
-}
-$('save-google-translation-key').onclick=()=>saveGoogleTranslationKey().catch(()=>{});
-$('clear-google-translation-key').onclick=()=>saveGoogleTranslationKey(true).catch(()=>{});
-async function saveDlxToken(clear=false){
- const field=$('dlx-token'),button=$(clear?'clear-dlx-token':'save-dlx-token');
- if(!clear&&!field.value.trim())return;
- button.disabled=true;
- try{await command('settings',{values:{dlx_token:clear?'':field.value.trim()}});field.value=''}
- finally{button.disabled=false}
-}
-$('save-dlx-token').onclick=()=>saveDlxToken().catch(()=>{});
-$('clear-dlx-token').onclick=()=>saveDlxToken(true).catch(()=>{});
 $('caption-model-picker').onchange=()=>{
  $('caption_model').value=$('caption-model-picker').value;
  save('caption_model',$('caption_model').value);
@@ -383,13 +359,7 @@ function render(s) {
  const captionConfig=s.caption_translation||{};
  choose('caption_provider',[{value:'',text:t('Same provider as answers')},...(captionConfig.providers||s.providers)],s.options.caption_provider||'');
  const dedicatedTranslation=!!captionConfig.dedicated;
- const googleTranslation=captionConfig.provider==='Google Cloud Translation';
  $('caption-llm-hint').hidden=dedicatedTranslation;
- $('dlx-settings').hidden=captionConfig.provider!=='DLX';
- input('dlx_url',s.options.dlx_url||'http://127.0.0.1:1188/translate');
- $('dlx-token').placeholder=t(captionConfig.has_token?'Configured; enter to replace':'Enter access token');
- $('google-translation-settings').hidden=!googleTranslation;
- $('google-translation-key').placeholder=t(captionConfig.has_key?'Configured; enter to replace':'Enter API Key');
  $('caption_model').closest('label').hidden=dedicatedTranslation;
  $('caption-model-picker').closest('label').hidden=dedicatedTranslation;
  document.querySelector('[data-action="refresh_caption_models"]').hidden=dedicatedTranslation;

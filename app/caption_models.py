@@ -3,13 +3,11 @@ import re
 import threading
 
 import providers
-from google_translation import PROVIDER as GOOGLE_TRANSLATE
-from dlx_translation import PROVIDER as DLX, endpoint as dlx_endpoint
 from model_catalog import select_models
 from reasoning_support import choices
 from web_translation import PROVIDERS as WEB_TRANSLATORS
 
-CAPTION_PROVIDERS = [*providers.NAMES, *WEB_TRANSLATORS, GOOGLE_TRANSLATE, DLX]
+CAPTION_PROVIDERS = [*providers.NAMES, *WEB_TRANSLATORS]
 
 
 def fast_model(provider, models):
@@ -55,20 +53,10 @@ class CaptionModels:
         if provider in WEB_TRANSLATORS:
             return dict(provider=provider, providers=CAPTION_PROVIDERS, models=[], resolved_model='web',
                         dedicated=True, loading=False, builtin=True,
-                        status=('Built-in online translation · No API key or DLX installation needed. '
+                        status=('Built-in online translation · No API key needed. '
                                 'Unofficial interface; availability and rate limits may change.'
                                 if a.locale.language == 'en' else
-                                '内置在线翻译 · 无需 API Key 或安装 DLX。非官方接口，可能限流或失效。'))
-        if provider == DLX:
-            return dict(provider=provider, providers=CAPTION_PROVIDERS, models=['DLX'], resolved_model='DLX',
-                        dedicated=True, loading=False, has_token=bool(a.dlx_token.get()),
-                        status=('DLX · Self-hosted translation service; starts the bundled local component automatically.'
-                                if a.locale.language == 'en' else 'DLX · 自托管翻译服务；自动启动内置本机组件。'))
-        if provider == GOOGLE_TRANSLATE:
-            return dict(provider=provider, providers=CAPTION_PROVIDERS, models=['nmt'], resolved_model='nmt',
-                        dedicated=True, has_key=bool(a.google_translation_key.get()), loading=False,
-                        status=('Google Cloud Translation · NMT · Enable the API and billing separately; billed by characters.'
-                                if a.locale.language == 'en' else 'Google Cloud Translation · NMT · 需单独启用 API 和结算；按字符计费。'))
+                                '内置在线翻译 · 无需 API Key。非官方接口，可能限流或失效。'))
         identity = self.identity(provider)
         models = self.catalog(provider)
         model = self.model(provider, models)
@@ -88,18 +76,6 @@ class CaptionModels:
         if provider in WEB_TRANSLATORS:
             return dict(provider=provider, model='web', key='', options={},
                         effort='服务默认', display_model=provider), None
-        if provider == DLX:
-            try:
-                url = dlx_endpoint(a.advanced['dlx_url'].get())
-            except ValueError as exc:
-                return None, str(exc)
-            return dict(provider=provider, model='DLX', key=a.dlx_token.get().strip(), options={'dlx_url': url},
-                        effort='服务默认', display_model='DLX'), None
-        if provider == GOOGLE_TRANSLATE:
-            key = a.google_translation_key.get().strip()
-            if not key:
-                return None, '请配置 Google Cloud Translation API Key。'
-            return dict(provider=provider, model='nmt', key=key, options={}, effort='服务默认', display_model='nmt'), None
         if provider not in CAPTION_PROVIDERS:
             return None, '未知字幕翻译平台。'
         model = self.model(provider, self.catalog(provider))
@@ -133,7 +109,7 @@ class CaptionModels:
     def refresh(self):
         a = self.app
         provider = self.provider()
-        if provider in (*WEB_TRANSLATORS, GOOGLE_TRANSLATE, DLX):
+        if provider in WEB_TRANSLATORS:
             return
         identity = self.identity(provider)
         if identity in self.loading:

@@ -64,12 +64,12 @@ class ReleasePackagingTests(unittest.TestCase):
                     self.assertIn(prefix + name, names)
                 self.assertIn(b'src="_internal/app/assets/echocue.png"', bundle.read(prefix + 'README.md'))
                 self.assertEqual(bundle.read(prefix + 'VERSION'), b'1.0.0')
-                for name in ('Release/whisper-cli.exe', 'Release/whisper.dll', 'ggml-base.bin', 'dlx/deeplx.exe', 'dlx/LICENSE.txt'):
+                for name in ('Release/whisper-cli.exe', 'Release/whisper.dll', 'ggml-base.bin'):
                     self.assertIn(prefix + '_internal/runtime/' + name, names)
                 self.assertNotIn(prefix + '_internal/runtime/Release/test-vad.exe', names)
-                self.assertNotIn(prefix + '_internal/runtime/dlx/private.log', names)
+                self.assertFalse(any('/runtime/dlx/' in name for name in names))
                 self.assertFalse(any('/data/' in name or '/work/' in name for name in names))
-            # A clean build supports native translators without the optional DLX executable.
+            # A clean build supports native translators without the removed DLX component.
             for asset in ('deeplx.exe', 'LICENSE.txt'):
                 (root / 'runtime/dlx' / asset).unlink()
             clean_output = Path(folder) / 'without-dlx'

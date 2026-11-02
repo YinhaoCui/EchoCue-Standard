@@ -145,6 +145,10 @@ class CaptionModelTests(unittest.TestCase):
         self.assertEqual(self.ui.advanced['caption_provider'].get(), 'DeepSeek')
         with self.assertRaises(ValueError):
             bridge.settings({'caption_provider': 'Unknown provider'})
+        for removed in ('DLX', 'Google Cloud Translation'):
+            with self.assertRaises(ValueError):
+                bridge.settings({'caption_provider': removed})
+            self.assertNotIn(removed, self.ui.caption_models.state()['providers'])
 
     def test_preferences_keep_nonsecret_translation_selection_without_keys(self):
         self.select('DeepSeek', 'custom-model')
@@ -152,8 +156,7 @@ class CaptionModelTests(unittest.TestCase):
         with patch.object(a, 'save_settings') as save:
             self.assertTrue(self.ui.save_preferences())
         saved = save.call_args.args[1]
-        self.assertEqual(saved['caption_translation'], {'caption_provider': 'DeepSeek', 'caption_model': 'custom-model',
-                                                       'dlx_url': 'http://127.0.0.1:1188/translate'})
+        self.assertEqual(saved['caption_translation'], {'caption_provider': 'DeepSeek', 'caption_model': 'custom-model'})
         self.assertNotIn('apis', saved)
 
     def test_meeting_recap_still_uses_answer_model_and_reasoning(self):

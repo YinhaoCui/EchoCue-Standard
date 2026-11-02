@@ -289,15 +289,6 @@ class GlassBridge:
 
     def settings(self, data):
         a = self.app
-        for secret in ('google_translation_key', 'dlx_token'):
-            if secret not in data:
-                continue
-            value = data[secret]
-            if not isinstance(value, str) or len(value) > 512 or any(ord(c) < 32 for c in value):
-                raise ValueError('Invalid translation credential')
-        if 'dlx_url' in data:
-            from dlx_translation import endpoint
-            endpoint(data['dlx_url'])
         if 'caption_provider' in data:
             from caption_models import CAPTION_PROVIDERS
             if data['caption_provider'] not in ('', *CAPTION_PROVIDERS):
@@ -307,13 +298,8 @@ class GlassBridge:
             if not isinstance(value, str) or len(value) > 256 or any(ord(c) < 32 for c in value):
                 raise ValueError('Invalid caption model ID')
         caption_changed = any(key in data and data[key] != a.advanced[key].get()
-                              for key in ('caption_provider', 'caption_model', 'dlx_url'))
-        for secret in ('google_translation_key', 'dlx_token'):
-            if secret in data:
-                var = getattr(a, secret)
-                caption_changed = caption_changed or data[secret].strip() != var.get()
-                var.set(data[secret].strip())
-        for key in ('caption_provider', 'caption_model', 'dlx_url'):
+                              for key in ('caption_provider', 'caption_model'))
+        for key in ('caption_provider', 'caption_model'):
             if key in data:
                 a.advanced[key].set(data[key])
         from settings_state import PRESENTATION_DEFAULTS, presentation_value

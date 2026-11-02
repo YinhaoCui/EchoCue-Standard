@@ -95,8 +95,20 @@ def _one(provider, text, language, cancel):
         raise RuntimeError(f'{provider}：翻译返回内容无效，接口可能已变化。') from None
 
 
+def chunks(text):
+    """Keep requests within 1500 UTF-16 units without dropping source text."""
+    start, units = 0, 0
+    for index, char in enumerate(text):
+        size = 2 if ord(char) > 0xFFFF else 1
+        if units + size > 1500:
+            yield text[start:index]
+            start, units = index, 0
+        units += size
+    if start < len(text):
+        yield text[start:]
+
+
 def translate(provider, text, language, cancel):
-    from dlx_translation import chunks
     from session_support import Cancelled
     if cancel.is_set():
         raise Cancelled()

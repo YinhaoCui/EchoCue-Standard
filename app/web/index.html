@@ -29,19 +29,6 @@
      <details class="settings-options" open id="caption-model-settings"><summary data-i="Caption translation model">Caption translation model</summary>
       <p class="hint" id="caption-llm-hint" data-i="Independent of answers. Uses the lowest supported thinking level. API keys are shared with the selected provider settings.">Independent of answers. Uses the lowest supported thinking level. API keys are shared with the selected provider settings.</p>
       <label><span data-i="Translation provider">Translation provider</span><select id="caption_provider"></select></label>
-      <div id="google-translation-settings" hidden>
-       <label><span data-i="Google Translation API Key">Google Translation API Key</span><input id="google-translation-key" type="password" autocomplete="off" maxlength="512"></label>
-       <button type="button" class="quiet" id="save-google-translation-key" data-i="Save API Key">Save API Key</button>
-       <button type="button" class="quiet" id="clear-google-translation-key" data-i="Clear API Key">Clear API Key</button>
-       <p class="hint" data-i="Enable Cloud Translation API and billing in Google Cloud. Charged by characters; separate from Gemini.">Enable Cloud Translation API and billing in Google Cloud. Charged by characters; separate from Gemini.</p>
-      </div>
-      <div id="dlx-settings" hidden>
-       <label><span data-i="DLX service URL">DLX service URL</span><input id="dlx_url" placeholder="http://127.0.0.1:1188/translate"></label>
-       <label><span data-i="DLX access token (optional)">DLX access token (optional)</span><input id="dlx-token" type="password" autocomplete="off" maxlength="512"></label>
-       <button type="button" class="quiet" id="save-dlx-token" data-i="Save token">Save token</button>
-       <button type="button" class="quiet" id="clear-dlx-token" data-i="Clear token">Clear token</button>
-       <p class="hint" data-i="The bundled DLX starts automatically at the default local address. DLX is independent of DeepL.">The bundled DLX starts automatically at the default local address. DLX is independent of DeepL.</p>
-      </div>
       <label><span data-i="Translation model">Translation model</span><select id="caption-model-picker"></select></label>
       <label><span data-i="Translation model ID">Translation model ID</span><input id="caption_model" maxlength="256" placeholder="Auto · prefer fast models"></label>
       <p id="caption-model-status" role="status"></p><button class="quiet" data-action="refresh_caption_models" data-i="Refresh translation models">Refresh translation models</button>

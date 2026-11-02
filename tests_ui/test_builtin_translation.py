@@ -22,8 +22,9 @@ class BuiltinTranslationUITests(unittest.TestCase):
         for provider in PROVIDERS:
             self.page.select_option('#caption_provider', provider)
             self.page.wait_for_function('(p)=>current.options.caption_provider === p', arg=provider)
-            self.assertFalse(self.page.is_visible('#google-translation-settings'))
-            self.assertFalse(self.page.is_visible('#dlx-settings'))
+            self.assertEqual(self.page.locator('#google-translation-settings, #dlx-settings').count(), 0)
+            self.assertNotIn('DLX', self.page.locator('#caption_provider option').all_text_contents())
+            self.assertNotIn('Google Cloud Translation', self.page.locator('#caption_provider option').all_text_contents())
             self.assertFalse(self.page.is_visible('#caption_model'))
             self.assertNotIn(provider, self.page.locator('#provider option').all_text_contents())
         self.assertTrue(all('google_translation_key' not in c.get('values', {}) and

@@ -34,7 +34,7 @@ class BuiltinTranslationTests(unittest.TestCase):
     def test_three_native_protocols_and_no_child_process(self):
         for provider in web.PROVIDERS:
             with self.subTest(provider=provider), patch('urllib.request.urlopen', return_value=response(payload(provider))) as post, \
-                    patch('dlx_translation.ensure_local') as local, patch('subprocess.Popen') as spawn:
+                    patch('subprocess.Popen') as spawn:
                 result = web.translate(provider, 'Hello!', 'zh', threading.Event())
                 self.assertEqual(result, '你好！' if provider == web.GOOGLE else '你好')
                 request = post.call_args.args[0]
@@ -55,7 +55,7 @@ class BuiltinTranslationTests(unittest.TestCase):
                                      (['Hello!'], 'zh-Hans', 'translate'))
                     self.assertEqual(request.get_header('Authorization'), 'None')
                     self.assertNotIn('source_lang', body)
-                local.assert_not_called(); spawn.assert_not_called()
+                spawn.assert_not_called()
 
     def test_long_unicode_input_is_complete_and_each_part_fits(self):
         source = 'text 世界🙂 ' * 600
@@ -119,8 +119,6 @@ class BuiltinCaptionIntegrationTests(unittest.TestCase):
     def test_selection_credentials_route_and_answer_isolation(self):
         import audio_answer
         answer = self.ui.provider.get()
-        self.ui.google_translation_key.set('must-not-send-paid-key')
-        self.ui.dlx_token.set('must-not-send-local-token')
         bridge = GlassBridge(self.ui)
         for provider in web.PROVIDERS:
             with self.subTest(provider=provider):
@@ -146,6 +144,28 @@ class BuiltinCaptionIntegrationTests(unittest.TestCase):
 
 class BuiltinCaptionRestoreTests(unittest.TestCase):
     tearDown = test_sessions.UITests.tearDown
+
+    def restore_removed(self, provider, replacement):
+        self.initial_settings = {'caption_translation': {'caption_provider': provider, 'caption_model': 'old-model'},
+                                 'google_translation_key': 'obsolete-key', 'dlx_token': 'obsolete-token'}
+        test_sessions.UITests.setUp(self)
+        inputs, error = self.ui.caption_models.inputs()
+        self.assertIsNone(error)
+        self.assertEqual((inputs['provider'], inputs['model'], inputs['key'], inputs['options']),
+                         (replacement, 'web', '', {}))
+        self.assertEqual(self.ui.advanced['caption_model'].get(), '')
+        with patch('audio_answer.save_settings') as save:
+            self.ui.save_preferences()
+        saved = save.call_args.args[1]
+        for key in ('dlx_token', 'dlx_url', 'google_translation_key'):
+            self.assertNotIn(key, saved)
+            self.assertNotIn(key, saved['caption_translation'])
+
+    def test_migrate_removed_dlx_to_native_deepl(self):
+        self.restore_removed('DLX', web.DEEPL)
+
+    def test_migrate_removed_cloud_to_native_google(self):
+        self.restore_removed('Google Cloud Translation', web.GOOGLE)
 
     def test_restore_native_provider_without_keys(self):
         self.initial_settings = {'caption_translation': {'caption_provider': web.MICROSOFT, 'caption_model': ''}}

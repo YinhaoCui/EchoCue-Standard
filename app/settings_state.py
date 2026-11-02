@@ -38,7 +38,7 @@ DEFAULT_OPTIONS = {
     **PRESENTATION_DEFAULTS,
     **MEETING_DEFAULTS,
     'source': '电脑', 'asr_engine': DEFAULT_ASR, 'asr_pause': '快速 · 0.35 秒',
-    'caption_provider': '', 'caption_model': '', 'dlx_url': 'http://127.0.0.1:1188/translate',
+    'caption_provider': '', 'caption_model': '',
     'gemini_route': '文字（先转录）', 'lm_base': 'http://127.0.0.1:1234/v1',
     **{option: '' for option in providers.MODEL_OPTIONS},
     'deadline': '不限时', 'max_output': '服务默认', 'content_policy': 'unrestricted',
@@ -76,9 +76,13 @@ class SettingsState:
         options = dict(self.saved.get('advanced', {}))
         translation = self.saved.get('caption_translation', {})
         if isinstance(translation, dict):
-            for key in ('caption_provider', 'caption_model', 'dlx_url'):
+            for key in ('caption_provider', 'caption_model'):
                 if isinstance(translation.get(key), str):
                     options[key] = translation[key]
+        from web_translation import DEEPL, GOOGLE
+        replacement = {'DLX': DEEPL, 'Google Cloud Translation': GOOGLE}.get(options.get('caption_provider'))
+        if replacement:
+            options.update(caption_provider=replacement, caption_model='')
         if options.get('caption_provider', '') not in ('', *CAPTION_PROVIDERS):
             options['caption_provider'] = ''
         layout = self.saved.get('layout')
@@ -98,9 +102,6 @@ class SettingsState:
             if options.get(key) not in values:
                 options[key] = MEETING_DEFAULTS[key]
         self.advanced = {key: tk.StringVar(value=options.get(key, value)) for key, value in DEFAULT_OPTIONS.items()}
-        import os
-        self.google_translation_key = tk.StringVar(value=self.saved.get('google_translation_key', '') or os.environ.get('GOOGLE_TRANSLATE_API_KEY', ''))
-        self.dlx_token = tk.StringVar(value=self.saved.get('dlx_token', '') or os.environ.get('DLX_TOKEN', ''))
         self.advanced['question_mode'].trace_add('write', self.change_question_mode)
         self.use_history = tk.BooleanVar(value=self.saved.get('use_history', True))
         self.mic_index = None

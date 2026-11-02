@@ -81,6 +81,23 @@ class PopupTests(unittest.TestCase):
         self.page.wait_for_function("document.querySelector('#language').value === 'zh'")
         self.wait_sent('language', 'zh')
 
+    def test_queued_scroll_before_open_does_not_cancel_keyboard_selection(self):
+        self.page.focus('#language')
+        self.page.keyboard.press('Alt+ArrowDown')
+        self.page.wait_for_selector('.select-list', state='visible')
+        # A scroll that completed before opening can deliver its event afterward.
+        self.page.eval_on_selector('.settings-content', "el => el.dispatchEvent(new Event('scroll'))")
+        self.assertTrue(self.page.is_visible('.select-list'))
+        self.page.keyboard.press('ArrowDown')
+        self.page.keyboard.press('Enter')
+        self.page.wait_for_function("document.querySelector('#language').value === 'zh'")
+        self.wait_sent('language', 'zh')
+
+    def test_scrolling_the_owner_after_open_still_closes_the_list(self):
+        self.page.click('#language')
+        self.page.eval_on_selector('.settings-content', 'el => el.scrollTop += 60')
+        self.page.wait_for_selector('.select-list', state='detached')
+
     def test_outside_press_closes_the_list(self):
         self.page.click('#provider')
         self.page.mouse.click(5, 740)

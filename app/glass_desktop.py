@@ -64,6 +64,7 @@ def host(url, token):
         policy = surface_layout[0]
         was_guarded = guard.enabled
         guard.set_enabled(bool(window.on_top and policy.get('mouse_only')))
+        guard.set_topmost(window.on_top)
         if was_guarded and policy.get('keyboard_editing') is True:
             window.native.Activate()
 

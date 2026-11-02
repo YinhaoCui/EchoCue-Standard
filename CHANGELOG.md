@@ -2,6 +2,8 @@
 
 ## 1.0.3
 
+- Synchronize the native topmost band after focus-style changes, repairing stale extended-style flags while avoiding repeated z-order writes after unpinning.
+
 - Keep keyboard dropdown selection working when a completed focus scroll delivers its event after the menu opens; still close the menu when its owner actually moves.
 
 - Remove the independent DLX service and Google Cloud Translation options, settings and bundled component; migrate previous selections to the matching built-in translator.

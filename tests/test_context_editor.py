@@ -24,6 +24,10 @@ class ContextEditorTests(unittest.TestCase):
                 path = Path(folder) / 'data/prompt_templates.dpapi'
                 self.assertNotIn(b'private prompt fixture', path.read_bytes())
                 self.assertEqual(load_settings(path), {'Interview': 'private prompt fixture'})
+                loaded = bridge.snapshot()['prompt_templates']['Interview']
+                self.assertTrue(loaded.startswith('private prompt fixture'))
+                self.assertIn('Start with the answer; skip staged introductions.', loaded)
+                self.assertEqual(loaded.count('Writing rules:'), 1)
                 bridge.command(dict(action='save_prompt_template', id='replace', version=1, name='Interview', text='replacement'))
                 self.assertFalse(bridge.prompt_result['ok'])
                 self.assertEqual(self.ui.prompt_templates['Interview'], 'private prompt fixture')

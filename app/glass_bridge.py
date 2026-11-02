@@ -10,7 +10,7 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from state_feed import StateFeed
-from prompt_templates import builtin_prompts
+from prompt_templates import builtin_prompts, templates_with_writing_rules
 from hotkey_settings import DEFAULTS as HOTKEY_DEFAULTS
 
 ASSETS = Path(__file__).with_name('web')
@@ -263,7 +263,7 @@ class GlassBridge:
             history=a.use_history.get(), profile=a.profile, documents=a.documents, summary=a.context_summary,
             context_version=a.context_version, history_count=len(a.history),
             context_edit=getattr(self, 'context_edit', None),
-            prompt_templates=a.prompt_templates, prompt_templates_version=a.prompt_templates_version,
+            prompt_templates=templates_with_writing_rules(a.prompt_templates), prompt_templates_version=a.prompt_templates_version,
             prompt_templates_error=a.prompt_templates_error, prompt_result=getattr(self, 'prompt_result', None),
             prompt_presets=builtin_prompts(),
             hotkeys=dict(a.hotkeys), hotkey_defaults=dict(HOTKEY_DEFAULTS),
@@ -289,17 +289,31 @@ class GlassBridge:
 
     def settings(self, data):
         a = self.app
+        for secret in ('google_translation_key', 'dlx_token'):
+            if secret not in data:
+                continue
+            value = data[secret]
+            if not isinstance(value, str) or len(value) > 512 or any(ord(c) < 32 for c in value):
+                raise ValueError('Invalid translation credential')
+        if 'dlx_url' in data:
+            from dlx_translation import endpoint
+            endpoint(data['dlx_url'])
         if 'caption_provider' in data:
-            import providers
-            if data['caption_provider'] not in ('', *providers.NAMES):
+            from caption_models import CAPTION_PROVIDERS
+            if data['caption_provider'] not in ('', *CAPTION_PROVIDERS):
                 raise ValueError('Unknown caption provider')
         if 'caption_model' in data:
             value = data['caption_model']
             if not isinstance(value, str) or len(value) > 256 or any(ord(c) < 32 for c in value):
                 raise ValueError('Invalid caption model ID')
         caption_changed = any(key in data and data[key] != a.advanced[key].get()
-                              for key in ('caption_provider', 'caption_model'))
-        for key in ('caption_provider', 'caption_model'):
+                              for key in ('caption_provider', 'caption_model', 'dlx_url'))
+        for secret in ('google_translation_key', 'dlx_token'):
+            if secret in data:
+                var = getattr(a, secret)
+                caption_changed = caption_changed or data[secret].strip() != var.get()
+                var.set(data[secret].strip())
+        for key in ('caption_provider', 'caption_model', 'dlx_url'):
             if key in data:
                 a.advanced[key].set(data[key])
         from settings_state import PRESENTATION_DEFAULTS, presentation_value
@@ -410,6 +424,9 @@ class GlassBridge:
         if context_changed:
             a.context_changed()
         if caption_changed:
+            a.captions.close()
+            a.captions.cache.clear()
+            a.captions.failed.clear()
             a.change_content_language('caption')
         a.save_preferences()
 
@@ -467,6 +484,15 @@ class GlassBridge:
             a.toggle_listen()
         elif action == 'answer':
             a.ask()
+        elif action == 'text_answer':
+            question = data.get('text')
+            if isinstance(question, str) and 0 < len(question.strip()) <= 10_000:
+                a.ask(transcript_override=question.strip())
+            else:
+                a.status.set('请输入不超过 10000 字的文字问题。')
+        elif action == 'translate_now':
+            if not a.captions.translate_now():
+                a.status.set('当前没有等待翻译的已定稿文字。')
         elif action in ('quick_answer', 'save_scene', 'load_scene', 'delete_scene', 'finish_recap'):
             a.meeting_command(data)
         elif action == 'cancel':
@@ -481,6 +507,8 @@ class GlassBridge:
             getattr(a, action)()
         elif action == 'capture':
             a.capture_screenshot()
+        elif action == 'capture_screen':
+            a.capture_screen(delay=3)
         elif action == 'analyze':
             a.start_analysis()
         elif action == 'refresh':

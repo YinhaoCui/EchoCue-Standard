@@ -250,12 +250,13 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
         self.save_timer = None
         self.api_settings[self.api_editing] = {'key': self.key.get().strip(), 'model': self.model.get().strip()}
         common = {'ui_language': self.locale.language, 'caption_language': self.content_language('caption'),
-                  'caption_translation': {key: self.advanced[key].get() for key in ('caption_provider', 'caption_model')},
+                  'caption_translation': {key: self.advanced[key].get() for key in ('caption_provider', 'caption_model', 'dlx_url')},
                   'answer_language': self.content_language('answer'), 'hotkeys': self.hotkeys,
                   'layout': {key: self.advanced[key].get() for key in SAVED_LAYOUT_KEYS}}
         try:
             if self.remember_keys.get():
-                save_settings(SETTINGS_FILE, {**common, 'apis': self.api_settings, 'terms': getattr(self, 'terms', ''),
+                save_settings(SETTINGS_FILE, {**common, 'apis': self.api_settings,
+                    'google_translation_key': self.google_translation_key.get(), 'dlx_token': self.dlx_token.get(), 'terms': getattr(self, 'terms', ''),
                     'provider': self.provider.get(), 'use_history': self.use_history.get(), 'fast': self.fast_mode.get(),
                     'answer_mode': self.answer_mode.get(), 'reasoning_settings': self.reasoning_settings,
                     'advanced': {k: v.get() for k, v in self.advanced.items()}})
@@ -450,8 +451,10 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
 
     def render_live_transcript(self):
         from caption_translation import display_transcript
-        pending = '\n\n'.join(self.captions.body(value['text'], draft=True)
-                              for value in self.live_drafts.values())
+        self.captions.sync_previews(self.live_drafts)
+        pending = '\n\n'.join(self.captions.body(value['text'], draft=True, source=source,
+                                               generation=value.get('generation', 0))
+                              for source, value in self.live_drafts.items())
         visible = display_transcript(self.captions.transcript(self.live_text))
         self.transcript_view = visible + ('\n\n' + pending if pending else '')
 
@@ -515,6 +518,8 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
             self.caption_models.receive(text)
         elif kind == 'caption_result':
             self.captions.receive(text)
+        elif kind == 'caption_partial':
+            self.captions.receive_partial(text)
         elif kind == 'screenshot':
             self.receive_screenshot(text)
         elif kind == 'session_saved':
@@ -572,6 +577,8 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
             self.toggle_listen()
         elif kind == 'hotkey':
             self.ask(pressed_at=text if isinstance(text, (int, float)) else None)
+        elif kind == 'capture_screen_hotkey':
+            self.capture_screen()
         elif kind == 'refill_generation':
             self.ensure_spare_context()
         elif kind == 'window_hotkey':
@@ -677,6 +684,8 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
         from antigravity_support import close_service as close_agy
         threading.Thread(target=close_agy, daemon=True).start()
         import http_pool; http_pool.close_all()
+        from dlx_translation import stop as stop_dlx
+        threading.Thread(target=stop_dlx, daemon=True).start()
         self.cancel_context_preparation()
         if getattr(self, 'speculation', None): self.speculation.discard()
         self.status.set('正在保存会话并关闭…')

@@ -56,14 +56,14 @@ class CaptionBatchingTests(unittest.TestCase):
         self.render()
         self.assertEqual(list(self.presenter.queue), [('bilingual', 'THANK YOU')])
 
-    def test_active_draft_prevents_idle_flush_of_previous_fragment(self):
+    def test_active_draft_does_not_extend_batch_deadline(self):
         self.add('EVIDENCE')
         with patch('caption_translation.time.monotonic', return_value=10):
             self.render()
         self.app.live_drafts['电脑'] = {'text': 'REPLIED THE INQUIRY'}
         with patch('caption_translation.time.monotonic', return_value=20):
             self.render()
-        self.assertFalse(self.presenter.pending)
+        self.assertEqual(list(self.presenter.queue), [('bilingual', 'EVIDENCE')])
         self.app.live_drafts.clear()
         with patch('caption_translation.time.monotonic', return_value=22):
             self.render()
@@ -113,7 +113,17 @@ class CaptionBatchingTests(unittest.TestCase):
             self.render()
         self.assertEqual(list(self.presenter.queue), [('bilingual', 'THANK YOU')])
 
-    def test_queued_recognition_prevents_premature_idle_flush(self):
+    def test_manual_translation_flushes_finalized_fragment_once(self):
+        self.add('THANK YOU')
+        self.render()
+        self.assertFalse(self.presenter.pending)
+        self.assertTrue(self.presenter.translate_now())
+        self.render()
+        self.assertEqual(list(self.presenter.queue), [('bilingual', 'THANK YOU')])
+        self.assertFalse(self.presenter.translate_now())
+        self.assertEqual(len(self.presenter.queue), 1)
+
+    def test_queued_recognition_does_not_extend_batch_deadline(self):
         self.add('EVIDENCE')
         self.app.live.submitted = 2
         self.app.live.completed = 1
@@ -121,11 +131,11 @@ class CaptionBatchingTests(unittest.TestCase):
             self.render()
         with patch('caption_translation.time.monotonic', return_value=15):
             self.render()
-        self.assertFalse(self.presenter.pending)
+        self.assertEqual(list(self.presenter.queue), [('bilingual', 'EVIDENCE')])
         self.add('IS IMPORTANT.')
         self.app.live.completed = 2
         self.render()
-        self.assertEqual(list(self.presenter.queue), [('bilingual', 'EVIDENCE IS IMPORTANT.')])
+        self.assertEqual(list(self.presenter.queue), [('bilingual', 'EVIDENCE'), ('bilingual', 'IS IMPORTANT.')])
 
     def test_editing_source_records_rebuilds_batches_without_mutating_them(self):
         self.add('WRONG')
@@ -135,7 +145,7 @@ class CaptionBatchingTests(unittest.TestCase):
         self.assertEqual(list(self.presenter.queue), [('bilingual', 'Correct sentence.')])
         self.assertEqual(self.app.live.records[0]['body'], 'Correct sentence.')
 
-    def test_final_events_waiting_for_ui_do_not_bypass_short_fragment_grouping(self):
+    def test_final_events_waiting_for_ui_do_not_extend_batch_deadline(self):
         self.add('THE OLD WOMAN')
         self.add('REPLIED WITH CLEAR EVIDENCE.')
         # Recognition can append the next record before the UI handles its event.
@@ -143,9 +153,10 @@ class CaptionBatchingTests(unittest.TestCase):
             self.presenter.transcript(self.app.live.records[0]['text'])
         with patch('caption_translation.time.monotonic', return_value=20):
             self.presenter.transcript(self.app.live.records[0]['text'])
-        self.assertFalse(self.presenter.pending)
+        self.assertEqual(list(self.presenter.queue), [('bilingual', 'THE OLD WOMAN')])
         self.render()
-        self.assertEqual(list(self.presenter.queue), [('bilingual', 'THE OLD WOMAN REPLIED WITH CLEAR EVIDENCE.')])
+        self.assertEqual(list(self.presenter.queue), [('bilingual', 'THE OLD WOMAN'),
+                                                      ('bilingual', 'REPLIED WITH CLEAR EVIDENCE.')])
 
 
 class CaptionBatchingIntegrationTests(unittest.TestCase):

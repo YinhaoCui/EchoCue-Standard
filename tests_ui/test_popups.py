@@ -70,7 +70,15 @@ class PopupTests(unittest.TestCase):
         self.page.keyboard.press('Alt+ArrowDown')
         self.page.keyboard.press('ArrowDown')
         self.page.keyboard.press('Enter')
-        self.assertEqual(self.page.eval_on_selector('#language', 'el => el.value'), 'zh')
+        self.page.wait_for_function("document.querySelector('#language').value === 'zh'")
+        self.wait_sent('language', 'zh')
+
+    def test_keyboard_selection_survives_focus_from_scrolled_settings(self):
+        self.page.eval_on_selector('.settings-content', "el => el.scrollTo({top:120,behavior:'instant'})")
+        self.page.focus('#language')
+        for key in ('Alt+ArrowDown', 'ArrowDown', 'Enter'):
+            self.page.keyboard.press(key)
+        self.page.wait_for_function("document.querySelector('#language').value === 'zh'")
         self.wait_sent('language', 'zh')
 
     def test_outside_press_closes_the_list(self):

@@ -4,8 +4,8 @@ import time
 from ctypes import wintypes
 import tkinter as tk
 
-DEFAULTS={'hotkey':'Ctrl+Alt+Space','topmost':'Ctrl+Alt+T','transcription':'Ctrl+Alt+L'}
-LABELS={'hotkey':'生成回答','topmost':'窗口置顶','transcription':'开始／暂停转录'}
+DEFAULTS={'hotkey':'Ctrl+Alt+Space','topmost':'Ctrl+Alt+T','transcription':'Ctrl+Alt+L','capture_screen':'Ctrl+Alt+S'}
+LABELS={'hotkey':'生成回答','topmost':'窗口置顶','transcription':'开始／暂停转录','capture_screen':'截取屏幕'}
 KEYS={'Space':32,'Enter':13,'Escape':27,'Tab':9,**{chr(k):k for k in range(65,91)},**{str(k):48+k for k in range(10)},**{'F'+str(k):111+k for k in range(1,25)}}
 MODIFIERS={'Ctrl':2,'Alt':1,'Shift':4,'Win':8}
 
@@ -68,6 +68,11 @@ class HotkeySettings:
                 if msg.message==0x8001:register()
                 elif msg.message==0x0312 and msg.wParam in registered:
                     action=registered[msg.wParam]
-                    self.events.put((action,time.monotonic()) if action in ('hotkey','transcription') else ('window_hotkey',action))
+                    if action in ('hotkey','transcription'):
+                        self.events.put((action,time.monotonic()))
+                    elif action=='capture_screen':
+                        self.events.put(('capture_screen_hotkey',None))
+                    else:
+                        self.events.put(('window_hotkey',action))
         finally:
             for key in registered:api.UnregisterHotKey(None,key)

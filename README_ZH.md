@@ -4,7 +4,7 @@
 
 # EchoCue Standard
 
-Windows 安装版：运行 `EchoCue-Standard-1.0.1-Setup-x64.exe`，从开始菜单或可选桌面快捷方式启动。通过 Windows 设置 → 应用 → 已安装的应用卸载。安装版的配置和会话保存在 `%LOCALAPPDATA%\EchoCue Standard`，升级和卸载均保留数据。安装包包含 Python、依赖和转录模型；缺少 WebView2 时会联网安装微软运行时。安装包不包含个人密钥、配置或会话。
+Windows 安装版：运行 `EchoCue-Standard-1.0.2-Setup-x64.exe`，从开始菜单或可选桌面快捷方式启动。通过 Windows 设置 → 应用 → 已安装的应用卸载。安装版的配置和会话保存在 `%LOCALAPPDATA%\EchoCue Standard`，升级和卸载均保留数据。安装包包含 Python、依赖和转录模型；缺少 WebView2 时会联网安装微软运行时。安装包不包含个人密钥、配置或会话。
 
 ### 实时听写，随时应答。
 
@@ -21,7 +21,7 @@ Windows 安装版：运行 `EchoCue-Standard-1.0.1-Setup-x64.exe`，从开始菜
 
 </div>
 
-当前源码版本：**1.0.1**。完整解压便携包后，请打开 `EchoCue.exe`。
+当前源码版本：**1.0.2**。完整解压便携包后，请打开 `EchoCue.exe`。
 
 ## 为什么做 EchoCue？
 

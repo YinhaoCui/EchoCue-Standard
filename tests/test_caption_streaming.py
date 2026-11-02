@@ -1,4 +1,4 @@
-"""Completed caption display and bounded concurrency under a stalled translation."""
+"""Incremental caption display and bounded concurrency under a stalled translation."""
 import queue
 import threading
 import unittest
@@ -24,10 +24,13 @@ class CaptionStreamingTests(unittest.TestCase):
         while kind == 'usage_updated':
             kind, payload = self.app.events.get(timeout=3)
         self.assertEqual(kind, expected)
-        self.presenter.receive(payload)
+        if kind == 'caption_partial':
+            self.presenter.receive_partial(payload)
+        else:
+            self.presenter.receive(payload)
         return payload
 
-    def test_chinese_only_appears_after_entire_translation_finishes(self):
+    def test_chinese_appears_before_entire_translation_finishes(self):
         started = threading.Event()
         inputs = dict(provider='Kimi', model='fixture', key='', options={'lm_base': ''},
                       effort='自动', display_model='fixture')
@@ -43,9 +46,9 @@ class CaptionStreamingTests(unittest.TestCase):
         with patch('audio_answer.compatible_answer', side_effect=slow):
             self.presenter.body('Hello world')
             self.assertTrue(started.wait(3))
-            self.assertEqual(self.presenter.body('Hello world'), 'Hello world\n正在翻译…')
-            self.assertFalse(self.app.live_dirty)
-            self.assertTrue(self.app.events.empty())
+            self.receive('caption_partial')
+            self.assertEqual(self.presenter.body('Hello world'), 'Hello world\n中文：你好')
+            self.assertTrue(self.app.live_dirty)
             self.assertNotIn(('bilingual', 'Hello world'), self.presenter.cache)
             self.release.set()
             self.receive('caption_result')
@@ -54,7 +57,7 @@ class CaptionStreamingTests(unittest.TestCase):
 
     def test_stalled_first_segment_does_not_block_later_segments(self):
         started = queue.Queue()
-        def slow(inputs, text, language, cancel, app):
+        def slow(inputs, text, language, cancel, app, **kwargs):
             started.put(text)
             if text == 'First':
                 self.release.wait(3)
@@ -98,7 +101,7 @@ class CaptionStreamingTests(unittest.TestCase):
 
     def test_backlog_gives_new_speech_a_slot_without_dropping_old_speech(self):
         started = queue.Queue()
-        def slow(inputs, text, language, cancel, app):
+        def slow(inputs, text, language, cancel, app, **kwargs):
             started.put(text)
             self.release.wait(3)
             return '译文' + text

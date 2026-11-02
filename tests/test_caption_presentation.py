@@ -37,7 +37,8 @@ class CaptionPresentationTests(unittest.TestCase):
         original = '[12:34:56 麦克风]\nHello'
         app = SimpleNamespace(live_text=original,
             live_drafts={'电脑': {'text': 'Draft one'}, '麦克风': {'text': 'Draft two'}},
-            captions=SimpleNamespace(transcript=lambda text: text, body=lambda text, **_: text))
+            captions=SimpleNamespace(transcript=lambda text: text, body=lambda text, **_: text,
+                                     sync_previews=lambda _: None))
         App.render_live_transcript(app)
         self.assertEqual(app.transcript_view, '[12:34:56]\nHello\n\nDraft one\n\nDraft two')
         self.assertEqual(app.live_text, original)

@@ -194,6 +194,12 @@ Kimi 官方余额：尚未查询。|Kimi balance has not been checked.
 补充文本 · 下次回答时自动加入会话资料|Additional text · included with your next answer
 补充文本已加入上下文，后续回答会带入。|Text added to context for subsequent answers.
 截取活动窗口|Capture active window
+截取屏幕|Capture screen
+屏幕截图|Screen capture
+3 秒后截取鼠标所在屏幕，请切回目标内容并打开弹窗。|Capturing the monitor under the pointer in 3 seconds. Switch to the target and open the popup.
+正在截取鼠标所在屏幕…|Capturing the monitor under the pointer…
+屏幕截图超时，请重试。|Screen capture timed out. Try again.
+无法截取当前屏幕，请重试。|Could not capture the current monitor. Try again.
 上下文截图|Context screenshots
 移除所选截图|Remove selected screenshot
 点击截图查看；移除后不再用于新的回答。截图中如有黑屏，请移除后重试。|Select a screenshot to view it. Removed images are excluded from new answers. Remove black captures and try again.

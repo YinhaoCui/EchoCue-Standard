@@ -64,6 +64,20 @@ class ScreenshotUITests(unittest.TestCase):
         self.ui.context_images.clear();self.ui.save_session();self.ui.session_writer.close()
         self.assertEqual(self.ui.session_store.load(self.ui.session_id)['images'],[])
 
+    def test_screen_capture_adds_context_without_a_target_window(self):
+        with patch.object(s,'capture_screen',return_value=attachment()) as capture:
+            self.ui.capture_screen()
+            deadline=time.monotonic()+2
+            while self.ui.screenshot_busy and time.monotonic()<deadline:
+                self.ui.poll();time.sleep(.01)
+        capture.assert_called_once_with()
+        self.assertEqual(self.ui.context_images,[attachment()])
+
+    def test_screen_shortcut_captures_without_switching_windows(self):
+        with patch.object(self.ui,'capture_screen') as capture:
+            self.ui.handle_event('capture_screen_hotkey',None)
+        capture.assert_called_once_with()
+
     def test_restore_images_and_ignore_capture_after_context_clear(self):
         self.ui.restore_payload({'images':[attachment()]})
         self.assertEqual(self.ui.context_images,[attachment()])

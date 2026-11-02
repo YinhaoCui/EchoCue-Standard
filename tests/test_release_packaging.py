@@ -23,8 +23,12 @@ class ReleasePackagingTests(unittest.TestCase):
             files = {
                 'EchoCue.exe': 'test launcher',
                 'app/assets/echocue.png': 'test icon',
+                'app/web_translation.py': '# Built-in translation needs no executable',
                 'vendor/dependency.py': '',
                 'runtime/asr/model.onnx': 'test model',
+                'runtime/dlx/deeplx.exe': 'DLX component',
+                'runtime/dlx/LICENSE.txt': 'MIT License',
+                'runtime/dlx/private.log': 'must not ship',
                 'runtime/Release/whisper-cli.exe': 'batch ASR',
                 'runtime/Release/whisper.dll': 'batch runtime',
                 'runtime/Release/test-vad.exe': 'unused diagnostic',
@@ -60,7 +64,19 @@ class ReleasePackagingTests(unittest.TestCase):
                     self.assertIn(prefix + name, names)
                 self.assertIn(b'src="_internal/app/assets/echocue.png"', bundle.read(prefix + 'README.md'))
                 self.assertEqual(bundle.read(prefix + 'VERSION'), b'1.0.0')
-                for name in ('Release/whisper-cli.exe', 'Release/whisper.dll', 'ggml-base.bin'):
+                for name in ('Release/whisper-cli.exe', 'Release/whisper.dll', 'ggml-base.bin', 'dlx/deeplx.exe', 'dlx/LICENSE.txt'):
                     self.assertIn(prefix + '_internal/runtime/' + name, names)
                 self.assertNotIn(prefix + '_internal/runtime/Release/test-vad.exe', names)
+                self.assertNotIn(prefix + '_internal/runtime/dlx/private.log', names)
                 self.assertFalse(any('/data/' in name or '/work/' in name for name in names))
+            # A clean build supports native translators without the optional DLX executable.
+            for asset in ('deeplx.exe', 'LICENSE.txt'):
+                (root / 'runtime/dlx' / asset).unlink()
+            clean_output = Path(folder) / 'without-dlx'
+            with patch.object(packager, 'ROOT', root), patch.object(packager.sys, 'base_prefix', str(python)), \
+                    patch.object(packager.sys, 'argv', ['package_release.py', '--output', str(clean_output)]), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                packager.main()
+            with zipfile.ZipFile(clean_output / 'EchoCue-1.0.0-windows-x64.zip') as bundle:
+                self.assertIn(prefix + '_internal/app/web_translation.py', bundle.namelist())
+                self.assertFalse(any('/runtime/dlx/' in name for name in bundle.namelist()))

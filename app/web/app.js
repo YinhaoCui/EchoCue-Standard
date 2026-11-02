@@ -8,13 +8,19 @@ const pending = new Map();
 let noticeUntil = 0;
 function notice(text){ $('status').textContent=text; noticeUntil=Date.now()+4000; }
 const translations = {
+ 'DLX service URL':'DLX 服务地址','DLX access token (optional)':'DLX 访问令牌（选填）',
+ 'Save token':'保存令牌','Clear token':'清除令牌','Enter access token':'输入访问令牌',
+ 'The bundled DLX starts automatically at the default local address. DLX is independent of DeepL.':'使用默认本机地址时自动启动内置 DLX。DLX 为独立项目，与 DeepL 官方分开。',
+ 'Google Translation API Key':'谷歌翻译 API Key','Save API Key':'保存 Key','Clear API Key':'清除 Key',
+ 'Configured; enter to replace':'已配置，输入可替换','Enter API Key':'输入 API Key',
+ 'Enable Cloud Translation API and billing in Google Cloud. Charged by characters; separate from Gemini.':'请在 Google Cloud 启用 Cloud Translation API 和结算。按字符计费，与 Gemini 分开。',
  'Caption translation model':'字幕翻译模型','Translation provider':'翻译平台','Translation model':'翻译模型','Translation model ID':'翻译模型 ID',
  'Refresh translation models':'刷新翻译模型','Auto · prefer fast models':'自动 · 优先快速模型','Same provider as answers':'与回答使用相同平台',
  'Independent of answers. Uses the lowest supported thinking level. API keys are shared with the selected provider settings.':'独立于回答模型，自动使用最低支持的思考档；API Key 沿用所选平台的配置。',
  Transparency:'透明度',Taskbar:'任务栏','Tray icon':'托盘图标',Analysis:'分析结果',Screenshots:'截图',On:'已开启',Off:'已关闭',
  'Background':'背景效果','Microphone device':'麦克风设备','Check APIs':'检测 API','Edit transcript':'编辑转录','Vocabulary':'术语词典','Export session':'导出会话',
  'Transcript finalization':'转录定稿速度','Incremental context':'增量上下文','Request timeout':'请求超时','Output tokens':'输出 Token',
- 'Cancel answers':'取消回答',
+ 'Cancel answers':'取消回答','Ask with text':'文字提问','Translate now':'立刻翻译','Your question':'输入问题','Send question':'发送问题',Cancel:'取消',
  Settings:'设置',Listen:'监听',Ready:'待机',Listening:'监听中',Models:'模型',Audio:'音频',Context:'上下文',
  Preferences:'偏好',Shortcuts:'快捷键','Model speed test':'模型测速',
  'Your workspace, ready when you are':'配置好，即可开始','Set up your session':'准备你的会话',
@@ -24,7 +30,7 @@ const translations = {
  'Audio source':'声音来源','Playback device':'播放设备','Transcription engine':'转录引擎','Transcript language':'转录语言',
  'Answer language':'回答语言','Question mode':'提问模式','Long questions wait for you to select Answer.':'长问题会等待你点击回答。',
  'Session context':'会话上下文','Analyze first':'先分析资料','Give your answers the right background.':'添加回答需要的背景资料。',
- 'Add file':'添加文件','Capture window':'截取窗口','View screenshots':'查看截图','Personal notes & goals':'个人资料与目标',
+ 'Add file':'添加文件','Capture window':'截取窗口','Capture screen':'截取屏幕','View screenshots':'查看截图','Personal notes & goals':'个人资料与目标',
  'Reference text':'参考文本','Save context encrypted':'加密保存上下文','Session preferences':'会话偏好',
  'Prepare context':'提前准备上下文','Prediction policy':'预生成策略','Keep conversation history':'保留全部对话',
  'Additional instructions':'补充要求','Observed usage':'本工具记录的用量','Changes are saved on this computer.':'设置保存在本机。',
@@ -47,6 +53,9 @@ const translations = {
  'Enter combinations such as Ctrl+Alt+P or Ctrl+Shift+F8. Changes apply after saving.':'填写 Ctrl+Alt+P 或 Ctrl+Shift+F8 等组合，保存后生效。'
 };
 const optionNames = {
+ 'DeepL (built-in)':['DeepL (built-in)','DeepL（内置免 Key）'],
+ 'Google Translate (built-in)':['Google Translate (built-in)','谷歌翻译（内置免 Key）'],
+ 'Microsoft Translator (built-in)':['Microsoft Translator (built-in)','微软翻译（内置免 Key）'],
  '电脑':['System audio','电脑'],'麦克风':['Microphone','麦克风'],'电脑 + 麦克风':['System + microphone','电脑 + 麦克风'],
  '长问题':['Long question','长问题'],'快速问答':['Quick Q&A','快速问答'],'开启':['On','开启'],'关闭':['Off','关闭'],
  '自动':['Auto','自动'],'仅疑问句':['Questions only','仅疑问句'],'每段定稿':['Every segment','每段定稿'],
@@ -144,7 +153,7 @@ async function save(id,value) {
  finally { setTimeout(()=>pending.delete(id),500); }
 }
 const fields=['ui_theme','listen_transparency','listen_text_color','listen_panel_color','background_mode','microphone','asr_pause','incremental_context','deadline','max_output','provider','model','key','effort','thinking_policy','answer_mode','source','device','asr_engine','caption','answer','question_mode','warm_context','speculate','history','profile','documents','instructions','lm_base','language'];
-fields.push('caption_model');
+fields.push('caption_model','dlx_url');
 fields.forEach(id=>$(id).addEventListener('change',async()=>{
  if(['profile','documents','instructions'].includes(id))return;
  const el=$(id), value=el.type==='checkbox'?el.checked:el.value;
@@ -164,6 +173,24 @@ $('caption_provider').onchange=async()=>{
  try{await command('settings',{values:{caption_provider:provider,caption_model:''}})}
  finally{setTimeout(()=>{pending.delete('caption_provider');pending.delete('caption_model')},500)}
 };
+async function saveGoogleTranslationKey(clear=false){
+ const field=$('google-translation-key'),button=$(clear?'clear-google-translation-key':'save-google-translation-key');
+ if(!clear&&!field.value.trim())return;
+ button.disabled=true;
+ try{await command('settings',{values:{google_translation_key:clear?'':field.value.trim()}});field.value=''}
+ finally{button.disabled=false}
+}
+$('save-google-translation-key').onclick=()=>saveGoogleTranslationKey().catch(()=>{});
+$('clear-google-translation-key').onclick=()=>saveGoogleTranslationKey(true).catch(()=>{});
+async function saveDlxToken(clear=false){
+ const field=$('dlx-token'),button=$(clear?'clear-dlx-token':'save-dlx-token');
+ if(!clear&&!field.value.trim())return;
+ button.disabled=true;
+ try{await command('settings',{values:{dlx_token:clear?'':field.value.trim()}});field.value=''}
+ finally{button.disabled=false}
+}
+$('save-dlx-token').onclick=()=>saveDlxToken().catch(()=>{});
+$('clear-dlx-token').onclick=()=>saveDlxToken(true).catch(()=>{});
 $('caption-model-picker').onchange=()=>{
  $('caption_model').value=$('caption-model-picker').value;
  save('caption_model',$('caption_model').value);
@@ -189,6 +216,36 @@ document.querySelectorAll('[data-action]').forEach(el=>el.onclick=async()=>{
  }catch(error){$('status').textContent=error.message;noticeUntil=Date.now()+8000;}
  finally{el.disabled=false}
 });
+const textAnswerForm=$('text-answer-form'),textAnswerInput=$('text-answer-input'),textAnswerToggle=$('text-answer-toggle');
+function showTextAnswer(show){
+ textAnswerForm.hidden=!show;
+ textAnswerToggle.setAttribute('aria-expanded',String(show));
+ if(show)textAnswerInput.focus();
+ else textAnswerToggle.focus();
+ scheduleShape();
+}
+textAnswerToggle.onclick=()=>showTextAnswer(textAnswerForm.hidden);
+$('translate-now').onclick=()=>command('translate_now').catch(()=>{});
+$('text-answer-close').onclick=()=>showTextAnswer(false);
+textAnswerForm.onsubmit=async event=>{
+ event.preventDefault();
+ const question=textAnswerInput.value.trim();
+ if(!question){textAnswerInput.focus();return}
+ const send=textAnswerForm.querySelector('[type=submit]');
+ if(send.disabled)return;
+ send.disabled=true;
+ try{
+  if(window.contextEditor)await window.contextEditor.apply();
+  await command('text_answer',{text:question});
+  textAnswerInput.value='';showTextAnswer(false);
+ }catch(error){$('status').textContent=error.message;noticeUntil=Date.now()+8000}
+ finally{send.disabled=false}
+};
+textAnswerInput.onkeydown=event=>{
+ if(event.key==='Enter'&&(event.ctrlKey||event.metaKey)){
+  event.preventDefault();textAnswerForm.requestSubmit();
+ }
+};
 document.querySelectorAll('[data-window]').forEach(el=>el.onclick=()=>command('window',{value:el.dataset.window}));
 document.querySelectorAll('[data-native]').forEach(el=>el.onclick=()=>{
  const fn=el.dataset.native;
@@ -324,7 +381,18 @@ function render(s) {
  choose('language',['en','zh'].map(x=>({value:x,text:x==='en'?'English':'中文'})),s.language);
  choose('provider',s.providers,s.provider);input('model',s.model);
  const captionConfig=s.caption_translation||{};
- choose('caption_provider',[{value:'',text:t('Same provider as answers')},...s.providers],s.options.caption_provider||'');
+ choose('caption_provider',[{value:'',text:t('Same provider as answers')},...(captionConfig.providers||s.providers)],s.options.caption_provider||'');
+ const dedicatedTranslation=!!captionConfig.dedicated;
+ const googleTranslation=captionConfig.provider==='Google Cloud Translation';
+ $('caption-llm-hint').hidden=dedicatedTranslation;
+ $('dlx-settings').hidden=captionConfig.provider!=='DLX';
+ input('dlx_url',s.options.dlx_url||'http://127.0.0.1:1188/translate');
+ $('dlx-token').placeholder=t(captionConfig.has_token?'Configured; enter to replace':'Enter access token');
+ $('google-translation-settings').hidden=!googleTranslation;
+ $('google-translation-key').placeholder=t(captionConfig.has_key?'Configured; enter to replace':'Enter API Key');
+ $('caption_model').closest('label').hidden=dedicatedTranslation;
+ $('caption-model-picker').closest('label').hidden=dedicatedTranslation;
+ document.querySelector('[data-action="refresh_caption_models"]').hidden=dedicatedTranslation;
  input('caption_model',s.options.caption_model||'');
  $('caption_model').placeholder=t('Auto · prefer fast models');
  if(!pending.has('caption_provider')&&!pending.has('caption_model')){
@@ -350,6 +418,7 @@ function render(s) {
  choose('asr_engine',s.engines,s.options.asr_engine);
  const readingLanguages=[{value:'English',text:t('English')},{value:'中文',text:t('Chinese')},'中英双语'];
  for(const id of ['caption','live-caption'])choose(id,['原文',...readingLanguages],s.caption);
+ $('translate-now').hidden=s.caption!=='中英双语';
  for(const id of ['answer','live-answer'])choose(id,readingLanguages,s.answer);
  for(const id of ['question_mode','live-mode'])choose(id,['长问题','快速问答'],s.options.question_mode);
  for(const id of ['warm_context'])choose(id,['开启','关闭'],s.options[id]);
@@ -497,7 +566,7 @@ liveStyle.onchange=()=>{applyTheme(liveStyle.value);save('ui_theme',liveStyle.va
 const hotkeySection=document.createElement('section');hotkeySection.className='card';hotkeySection.id='shortcuts';
 const hotkeyHeading=document.createElement('h2');hotkeyHeading.dataset.i='Global shortcuts';hotkeyHeading.textContent=t('Global shortcuts');hotkeySection.append(hotkeyHeading);
 const hotkeyHelp=document.createElement('p');hotkeyHelp.dataset.i='Enter combinations such as Ctrl+Alt+P or Ctrl+Shift+F8. Changes apply after saving.';hotkeyHelp.textContent=t(hotkeyHelp.dataset.i);hotkeySection.append(hotkeyHelp);
-const hotkeyLabels={hotkey:'Create an answer',topmost:'Always on top',transcription:'Start / pause transcription'};
+const hotkeyLabels={hotkey:'Create an answer',topmost:'Always on top',transcription:'Start / pause transcription',capture_screen:'Capture screen'};
 for(const [action,title] of Object.entries(hotkeyLabels)){
  const label=document.createElement('label'),name=document.createElement('span'),input=document.createElement('input');
  name.dataset.i=title;name.textContent=t(title);input.id='hotkey-'+action;input.dataset.hotkey=action;input.autocomplete='off';input.spellcheck=false;

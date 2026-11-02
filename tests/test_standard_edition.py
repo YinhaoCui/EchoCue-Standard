@@ -5,8 +5,8 @@ from tray_menu import menu_entries
 
 
 class StandardEditionTests(unittest.TestCase):
-    def test_shortcuts_cover_the_three_desktop_actions(self):
-        self.assertEqual(set(DEFAULTS), {'hotkey', 'topmost', 'transcription'})
+    def test_shortcuts_cover_standard_actions_and_monitor_capture(self):
+        self.assertEqual(set(DEFAULTS), {'hotkey', 'topmost', 'transcription', 'capture_screen'})
         self.assertEqual(validate(DEFAULTS), DEFAULTS)
 
     def test_tray_actions_and_pin_state(self):

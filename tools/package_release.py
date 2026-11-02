@@ -25,6 +25,9 @@ def main():
     standard = (ROOT / 'EDITION').is_file() and (ROOT / 'EDITION').read_text().strip() == 'standard'
     name = 'EchoCue-Standard' if standard else 'EchoCue'
     dependencies = args.dependencies.resolve()
+    dlx = dependencies / 'runtime/dlx'
+    if (dlx / 'deeplx.exe').is_file() and not (dlx / 'LICENSE.txt').is_file():
+        raise RuntimeError('Missing DLX license; run tools/setup_dlx.py first.')
     DEST=args.output.resolve()/(name+'-'+version+'-windows-x64')
     if DEST.exists():raise RuntimeError('Release directory already exists; inspect it before rebuilding.')
     internal=DEST/'_internal';internal.mkdir(parents=True)
@@ -37,6 +40,10 @@ def main():
     shutil.copy2(ROOT/'tools/login_antigravity.cmd',internal/'tools/login_antigravity.cmd')
     runtime=internal/'runtime';runtime.mkdir()
     shutil.copytree(dependencies/'runtime/asr',runtime/'asr',ignore=ignore)
+    if (dlx / 'deeplx.exe').is_file():
+        (runtime / 'dlx').mkdir()
+        for asset in ('deeplx.exe', 'LICENSE.txt'):
+            shutil.copy2(dlx / asset, runtime / 'dlx' / asset)
     # The batch-transcription fallback still uses whisper.cpp independently of streaming ASR.
     legacy = dependencies / 'runtime/Release'
     if legacy.is_dir():

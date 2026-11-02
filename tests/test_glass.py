@@ -69,6 +69,18 @@ class GlassTests(unittest.TestCase):
         finally:
             bridge.close()
 
+    def test_text_answer_uses_typed_question_without_audio(self):
+        bridge = GlassBridge(self.ui)
+        try:
+            with patch.object(self.ui, 'ask') as ask:
+                bridge.command({'action': 'text_answer', 'text': '  What now?  '})
+                ask.assert_called_once_with(transcript_override='What now?')
+                for text in ('   ', 123, 'x' * 10001):
+                    bridge.command({'action': 'text_answer', 'text': text})
+                ask.assert_called_once()
+        finally:
+            bridge.close()
+
     def test_provider_change_preserves_saved_key_and_edits_context(self):
         bridge = GlassBridge(self.ui)
         try:

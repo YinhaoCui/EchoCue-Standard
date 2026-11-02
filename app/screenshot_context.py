@@ -45,6 +45,24 @@ def capture_window(target):
     return dict(id=uuid.uuid4().hex,title=target['title'],created=time.strftime('%Y-%m-%d %H:%M:%S'),data=data)
 
 
+def capture_screen():
+    """Capture the visible monitor under the pointer, including other windows and popups."""
+    helper=Path(__file__).with_name('capture_screen.ps1')
+    executable=Path(os.environ['SystemRoot'])/'System32/WindowsPowerShell/v1.0/powershell.exe'
+    try:
+        result=subprocess.run([str(executable),'-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
+                               '-File',str(helper)],capture_output=True,timeout=12,
+                              creationflags=subprocess.CREATE_NO_WINDOW)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError('屏幕截图超时，请重试。') from None
+    if result.returncode:
+        raise RuntimeError('无法截取当前屏幕，请重试。')
+    data=result.stdout.decode('ascii').strip()
+    if not base64.b64decode(data,validate=True).startswith(b'\x89PNG\r\n\x1a\n'):
+        raise RuntimeError('截图数据无效，请重试。')
+    return dict(id=uuid.uuid4().hex,title='屏幕截图',created=time.strftime('%Y-%m-%d %H:%M:%S'),data=data)
+
+
 @contextmanager
 def image_files(images, folder):
     paths=[]
@@ -91,6 +109,18 @@ class Screenshots:
         def run():
             try: result=capture_window(target);error=''
             except Exception as exc: result=None;error=str(exc)
+            self.events.put(('screenshot',(revision,result,error)))
+        threading.Thread(target=run,daemon=True).start()
+
+    def capture_screen(self, *, delay=0):
+        if self.screenshot_busy or getattr(self,'closing',False):return
+        self.screenshot_busy=True
+        revision=self.context_version
+        self.status.set('3 秒后截取鼠标所在屏幕，请切回目标内容并打开弹窗。' if delay else '正在截取鼠标所在屏幕…')
+        def run():
+            if delay:time.sleep(delay)
+            try:result=capture_screen();error=''
+            except Exception as exc:result=None;error=str(exc)
             self.events.put(('screenshot',(revision,result,error)))
         threading.Thread(target=run,daemon=True).start()
 

@@ -10,13 +10,16 @@ import providers
 from prompt_language import choose, for_inputs, language, output_rule, system_prompt as model_system, preparation, analysis_task
 
 QUESTION_HINT = re.compile(r'[?？]|吗|呢|什么|怎么|怎样|为什么|为何|如何|哪|多少|是否|能不能|可不可以|有没有|是不是|'
-                           r'请问|解释|介绍|说说|讲讲|区别|'
-                           r'\b(what|why|how|when|where|which|who|whose|can|could|would|should|do|does|did|is|are|'
-                           r'tell me|explain|describe|difference)\b', re.I)
+                           r'请问|解释|介绍|说说|讲讲|区别')
+ENGLISH_QUESTION = re.compile(
+    r'(?:^|[.!]\s+|\n)\s*(?:(?:please|okay|ok|well|so|hey|hi)[,\s]+)*'
+    r'(?:what|why|how|when|where|which|who|whose|whom|can|could|would|should|do|does|did|is|are|am|'
+    r'was|were|will|shall|have|has|had|may|might|must|tell\s+me|explain|describe|help\s+me)\b', re.I)
 
 
 def looks_like_question(text):
-    return bool(QUESTION_HINT.search(text or ''))
+    text = re.sub(r'(?m)^\[\d{2}:\d{2}(?::\d{2})?[^\]\n]*\]\s*', '', text or '')
+    return bool(QUESTION_HINT.search(text) or ENGLISH_QUESTION.search(text))
 
 
 def build_prompt(inputs, transcript):
@@ -34,7 +37,11 @@ def build_prompt(inputs, transcript):
 
 def request_signature(inputs, transcript):
     """Everything that changes the request; a speculation is only reused when this is identical."""
-    options = tuple(sorted((k, v) for k, v in inputs['options'].items() if k != 'speculate'))
+    # Appearance, capture and caption settings do not change an already transcribed answer.
+    selected = {'lm_base', 'thinking_policy', 'incremental_context'}
+    if providers.is_cli(inputs['provider']):
+        selected.add(providers.model_option(inputs['provider']))
+    options = tuple(sorted((k, v) for k, v in inputs['options'].items() if k in selected))
     images = tuple((i.get('created'), i.get('title'), hashlib.sha256(i.get('data','').encode()).hexdigest()) for i in inputs['images'])
     return (inputs['provider'], inputs['key'], inputs['model'], options, inputs['effort'], inputs['reasoning'],
             inputs['fast'], inputs['timeout'], inputs['output_limit'], images, inputs['context_version'],

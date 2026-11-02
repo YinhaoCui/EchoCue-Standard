@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.2
+
+- Keep the text-question submit button accessible after resizing the editor; stabilize language-selection browser checks.
+
+- Add built-in, key-free DeepL, Google and Microsoft caption translation, plus the official Google Cloud Translation option.
+- Show revisable translations during speech, prioritize finalized text, and bound caption batching waits.
+- Fix declarative English sentences incorrectly triggering question-only automatic answers and speculative generation.
+- Preserve speculative answers when only caption or appearance settings change; still invalidate them when the actual request changes.
+- Support editable text questions and screenshots of the monitor under the pointer.
+- Include translation protocol licenses and measured latency reports; keep the independent DLX component optional.
+
+
 ## 1.0.1
 
 - Replace the retired Midnight Studio preview with the integrated light and Black Gold Workbench, with answer tabs and reorganized settings.

@@ -123,10 +123,15 @@ class FakeBridge:
                             bridge.state['status'] = 'rejected: %s' % exc
                             return self.reply(400, b'{}')
                         bridge.state['options'].update(look)
+                        for key in ('caption_provider', 'caption_model', 'dlx_url'):
+                            if key in values:
+                                bridge.state['options'][key] = values[key]
                         from meeting_assistance import OPTIONS
                         bridge.state['options'].update({k: v for k, v in values.items() if k in OPTIONS and v in OPTIONS[k]})
                         if 'history' in values:
                             bridge.state['history'] = values['history']
+                        if values.get('language') in ('en', 'zh'):
+                            bridge.state['language'] = values['language']
                     bridge.publish()
                 self.reply(202, b'{"queued":true}')
 
@@ -249,6 +254,39 @@ class ListenPageTests(unittest.TestCase):
         actions=[c['action'] for c in self.bridge.commands]
         self.assertLess(actions.index('apply_context'), actions.index('answer'))
         self.assertNotIn('private draft fixture', self.page.evaluate('JSON.stringify(localStorage)+JSON.stringify(sessionStorage)'))
+
+    def test_text_question_sends_answer_without_transcription(self):
+        self.assertFalse(self.bridge.state['listening'])
+        self.page.click('#text-answer-toggle')
+        self.assertTrue(self.page.is_visible('#text-answer-input'))
+        self.assertTrue(self.page.locator('.transcript-panel #text-answer-form').is_visible())
+        box = self.page.locator('#text-answer-input').bounding_box()
+        self.page.mouse.move(box['x'] + box['width'] - 3, box['y'] + box['height'] - 3)
+        self.page.mouse.down()
+        self.page.mouse.move(box['x'] + box['width'] - 73, box['y'] + box['height'] + 37, steps=5)
+        self.page.mouse.up()
+        resized = self.page.locator('#text-answer-input').bounding_box()
+        self.assertGreater(resized['height'], box['height'] + 20)
+        self.assertLess(resized['width'], box['width'] - 40)
+        self.page.fill('#text-answer-input', '  How should I start?  ')
+        self.page.click('#text-answer-form [type=submit]')
+        self.page.wait_for_function("document.querySelector('#text-answer-form').hidden")
+        with self.bridge.lock:
+            sent = [c for c in self.bridge.commands if c.get('action') == 'text_answer']
+        self.assertEqual(sent, [{'action': 'text_answer', 'text': 'How should I start?'}])
+        self.assertEqual(self.page.input_value('#text-answer-input'), '')
+
+    def test_translate_now_only_appears_for_bilingual_captions(self):
+        self.assertTrue(self.page.is_hidden('#translate-now'))
+        with self.bridge.lock:
+            self.bridge.state['caption'] = '中英双语'
+            self.bridge.publish()
+        self.page.wait_for_function("!document.querySelector('#translate-now').hidden")
+        with self.page.expect_response(lambda response: response.url.endswith('/command')
+                                       and response.request.post_data_json.get('action') == 'translate_now'):
+            self.page.click('#translate-now')
+        with self.bridge.lock:
+            self.assertIn({'action': 'translate_now'}, self.bridge.commands)
 
     def test_context_editor_applies_without_losing_draft_on_refresh(self):
         self.page.click('#context-toggle')

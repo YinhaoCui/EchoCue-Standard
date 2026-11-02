@@ -103,5 +103,5 @@ jobs:
             exit 0
           fi
           gh release create "$tag" artifacts/*.zip artifacts/*.exe artifacts/*.sha256 \
-            --target "$GITHUB_SHA" --title "EchoCue $version" \
+            --draft --target "$GITHUB_SHA" --title "EchoCue $version" \
             --notes-file "docs/releases/$version.md"

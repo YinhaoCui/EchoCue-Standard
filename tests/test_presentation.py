@@ -3,7 +3,7 @@ import unittest
 import audio_answer as a
 import test_sessions
 from glass_bridge import GlassBridge, listen_layout
-from prompt_templates import builtin_prompts
+from prompt_templates import builtin_prompts, templates_with_writing_rules
 from settings_state import presentation_value
 
 
@@ -30,8 +30,18 @@ class PresentationValidationTests(unittest.TestCase):
         for entry in prompts:
             self.assertTrue(entry['name'] and entry['name_zh'] and entry['text'])
             self.assertIn('selected answer language', entry['text'])
+            self.assertIn('Start with the answer; skip staged introductions.', entry['text'])
+            self.assertIn('Preserve supported facts and uncertainty; add no new facts.', entry['text'])
+            self.assertEqual(entry['text'].count('Writing rules:'), 1)
         prompts[0]['text'] = 'changed'
         self.assertNotEqual(builtin_prompts()[0]['text'], 'changed')
+
+    def test_saved_templates_receive_rules_once_without_changing_source(self):
+        stored = {'Tutor': 'Be a concise tutor'}
+        first = templates_with_writing_rules(stored)
+        self.assertEqual(stored['Tutor'], 'Be a concise tutor')
+        self.assertEqual(first['Tutor'].count('Writing rules:'), 1)
+        self.assertEqual(templates_with_writing_rules(first), first)
 
 
 class PresentationSavingTests(unittest.TestCase):

@@ -8,7 +8,7 @@
 
 System audio, your microphone, reference material, and multiple AI models in one Windows desktop workspace.
 
-[![Version](https://img.shields.io/badge/Version-1.0.1-2d847a)](https://github.com/YinhaoCui/EchoCue-Standard/releases/latest)
+[![Version](https://img.shields.io/badge/Version-1.0.2-2d847a)](https://github.com/YinhaoCui/EchoCue-Standard/releases/latest)
 [![Windows build](https://github.com/YinhaoCui/EchoCue-Standard/actions/workflows/windows.yml/badge.svg)](https://github.com/YinhaoCui/EchoCue-Standard/actions/workflows/windows.yml)
 ![Platform](https://img.shields.io/badge/Windows-x64-0078D4)
 ![Interface languages](https://img.shields.io/badge/UI-English%20%7C%20中文-2563EB)
@@ -19,7 +19,7 @@ System audio, your microphone, reference material, and multiple AI models in one
 
 </div>
 
-Current version: **1.0.1**. Install with `EchoCue-Standard-1.0.1-Setup-x64.exe`, or extract the portable download and open `EchoCue.exe`.
+Current version: **1.0.2**. Install with `EchoCue-Standard-1.0.2-Setup-x64.exe`, or extract the portable download and open `EchoCue.exe`.
 
 ## Why EchoCue?
 

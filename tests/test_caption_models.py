@@ -152,7 +152,8 @@ class CaptionModelTests(unittest.TestCase):
         with patch.object(a, 'save_settings') as save:
             self.assertTrue(self.ui.save_preferences())
         saved = save.call_args.args[1]
-        self.assertEqual(saved['caption_translation'], {'caption_provider': 'DeepSeek', 'caption_model': 'custom-model'})
+        self.assertEqual(saved['caption_translation'], {'caption_provider': 'DeepSeek', 'caption_model': 'custom-model',
+                                                       'dlx_url': 'http://127.0.0.1:1188/translate'})
         self.assertNotIn('apis', saved)
 
     def test_meeting_recap_still_uses_answer_model_and_reasoning(self):

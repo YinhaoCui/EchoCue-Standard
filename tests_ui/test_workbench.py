@@ -20,6 +20,27 @@ class WorkbenchTests(unittest.TestCase):
     test_menus = listen.ListenPageTests.test_menus_open_one_at_a_time_and_close
     test_focus_policy = listen.ListenPageTests.test_listening_avoids_activation_but_text_editors_allow_keyboard_focus
 
+    def test_listening_window_stays_fixed_while_transcript_scrolls(self):
+        text = '\n'.join(f'Transcript line {i}' for i in range(120))
+        with self.bridge.lock:
+            self.bridge.state['transcript'] = text
+            self.bridge.publish()
+        self.page.set_viewport_size(dict(width=1164, height=801))
+        self.page.wait_for_function("document.querySelector('#transcript').textContent.includes('Transcript line 119')")
+        sizes = self.page.evaluate('''() => ({
+            viewport: innerHeight,
+            document: document.documentElement.scrollHeight,
+            body: document.body.scrollHeight,
+            transcript: document.querySelector('#transcript').scrollHeight,
+            transcriptView: document.querySelector('#transcript').clientHeight
+        })''')
+        self.assertLessEqual(sizes['document'], sizes['viewport'], sizes)
+        self.assertLessEqual(sizes['body'], sizes['viewport'], sizes)
+        self.assertGreater(sizes['transcript'], sizes['transcriptView'])
+        self.page.evaluate('window.scrollTo(0, 100)')
+        self.assertEqual(self.page.evaluate('scrollY'), 0)
+        self.assertGreater(self.page.locator('#transcript').evaluate('el => {el.scrollTop=100; return el.scrollTop}'), 0)
+
     def settings(self, section):
         self.page.click('button.nav[data-view=settings]')
         self.page.click(f'#settings [data-section="{section}"]')

@@ -7,6 +7,15 @@ _COMMON = (
     'Do not invent facts, experiences, sources, or actions you have not performed. '
 )
 
+_WRITING_RULES = (
+    'Writing rules:\n'
+    '1. Start with the answer; skip staged introductions.\n'
+    '2. Use plain words and natural sentence rhythm.\n'
+    '3. Avoid formulaic contrasts, forced lists of three, decorative dashes, and bold labels.\n'
+    '4. Cut inflated claims and closing lines that repeat the point.\n'
+    '5. Preserve supported facts and uncertainty; add no new facts.'
+)
+
 _BUILTINS = (
     ('general', 'General', '通用助手',
      'Be a practical, clear assistant. Answer the current question directly, then give only the explanation or next steps needed. '
@@ -45,8 +54,18 @@ _BUILTINS = (
 
 def builtin_prompts():
     """Return fresh entries so callers cannot mutate the built-in catalog."""
-    return [dict(id=key, name=name, name_zh=name_zh, text=_COMMON + text)
+    return [dict(id=key, name=name, name_zh=name_zh, text=with_writing_rules(_COMMON + text))
             for key, name, name_zh, text in _BUILTINS]
+
+
+def with_writing_rules(text):
+    """Add the shared answer style once, without changing stored custom text."""
+    return text if _WRITING_RULES in text else text.rstrip() + '\n\n' + _WRITING_RULES
+
+
+def templates_with_writing_rules(templates):
+    """Expose saved templates with the same rules when they are loaded in the editor."""
+    return {name: with_writing_rules(text) for name, text in templates.items()}
 
 
 def validate_templates(value):

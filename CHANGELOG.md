@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.4
+
+- Show live transcript drafts and streamed answer text sooner: worker events now reach the page in about 30 ms (median) instead of about 80 ms, and at most about 50 ms instead of about 150 ms.
+- List each model once and in one order everywhere: effort variants run low to high, the newest version leads its family, and Claude Code aliases no longer duplicate their resolved model IDs.
+- Write a local diagnostic log to `data/logs/` with API keys redacted, including uncaught errors.
+- Store on/off, speculation, time-limit and output-limit options as language-neutral codes; older saved settings are converted when loaded.
+- Route answers, caption translation and the speed test through one provider entry point, and run the answer pipeline in a standalone `AnswerRunner`.
+- Load native audio packages only when capture starts.
+- Add ruff and prettier checks to CI and format the code base.
+
 ## 1.0.3
 
 - Synchronize the native topmost band after focus-style changes, repairing stale extended-style flags while avoiding repeated z-order writes after unpinning.
@@ -34,12 +44,6 @@
 - Use English for the default README and provide a separate Chinese README.
 - Rename the application, launcher, assets, internal identifiers, and portable packages to EchoCue.
 - Include both README languages in portable packages.
-
-- Write a local diagnostic log to `data/logs/` with API keys redacted, including uncaught errors.
-- Store on/off, speculation, time-limit and output-limit options as language-neutral codes; older saved settings are converted when loaded.
-- Route answers, caption translation and the speed test through one provider entry point.
-- Move the answer pipeline into a standalone `AnswerRunner`, and load native audio packages only when capture starts.
-- Add ruff and prettier checks to CI and format the code base.
 
 ## 2026.10.23.1
 

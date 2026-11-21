@@ -65,7 +65,7 @@ DEFAULT_OPTIONS = {
     'spare_session': option_values.OFF,
     'background_mode': 'frosted',
     'listen_transparency': '12',
-    'transcript_font_size': '21',
+    'transcript_font_size': '18',  # the answer leads; the transcript is context
     'answer_font_size': '21',
     'listen_layout': '',
     'listen_text_color': '#ffffff',

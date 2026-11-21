@@ -1658,7 +1658,7 @@ body[data-view='listen'] #context-drawer {
 
 /* Reading text size (A−/A+) for transcript and answer. */
 .reading.transcript {
-  font-size: var(--transcript-size, 21px);
+  font-size: var(--transcript-size, 18px);
 }
 .reading.answer {
   font-size: var(--answer-size, 21px);
@@ -4007,4 +4007,310 @@ body[data-theme='workbench'] .menu:not([hidden]) {
 }
 body[data-theme='workbench'] .statusbar:not(:has(span:not(:empty))) {
   display: none;
+}
+
+/* Review round: a prompter, not a dashboard.
+   The listen screen keeps the transcript, the answer and one bar of controls used mid-meeting. */
+body[data-theme='workbench'] {
+  --wb-primary: var(--wb-ink);
+  --wb-on-primary: var(--wb-surface);
+}
+body[data-theme='workbench'][data-palette='dark'] {
+  /* A white slab glares beside a video call: the filled button is a raised grey instead. */
+  --wb-primary: #3d3c38;
+  --wb-on-primary: #ecebe7;
+  --primary-rgb: 61, 60, 56;
+}
+body[data-theme='workbench'] :is(button.primary, .context-settings-save button):not(:disabled) {
+  background: var(--wb-primary);
+  border-color: var(--wb-primary);
+  color: var(--wb-on-primary);
+}
+
+/* Pane headers are a caption. Controls appear when the pane is in use. */
+body[data-theme='workbench'][data-view='listen'] .reading-heading {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+body[data-theme='workbench'][data-view='listen'] .reading-heading > .inline {
+  margin-left: auto;
+  flex-wrap: nowrap;
+}
+body[data-theme='workbench'][data-view='listen'] .reading-heading [data-copy] {
+  opacity: 0;
+}
+body[data-theme='workbench'][data-view='listen']
+  :is(.transcript-panel, .answer-panel):is(:hover, :focus-within)
+  .reading-heading
+  [data-copy] {
+  opacity: 1;
+}
+body[data-theme='workbench'][data-view='listen'] .answer-panel .reading-heading [data-action='answer'],
+body[data-theme='workbench'][data-view='listen']:not([data-busy='1'])
+  .answer-panel
+  .reading-heading
+  [data-action='cancel'] {
+  display: none;
+}
+body[data-theme='workbench'][data-view='listen'] #model-badge {
+  font-size: var(--text-xs);
+  color: color-mix(in srgb, var(--listen-text) 55%, transparent);
+  white-space: nowrap;
+}
+body[data-theme='workbench'] .workbench-tabs[data-single='1'] {
+  display: none;
+}
+body[data-theme='workbench'][data-view='listen'] :is(.workbench-tabs, #meeting-refinements, #listen-status) {
+  border: 0;
+}
+
+/* The gaps between slabs let clicks through to the desktop; nothing is drawn inside them. */
+body[data-theme='workbench'][data-view='listen'] .splitter::after,
+body[data-theme='workbench'][data-view='listen'] .splitter::before {
+  display: none;
+}
+body[data-theme='workbench'][data-view='listen'] :is(.listen-page > .glass, .capsule, .listen-toolbar) {
+  border-color: transparent !important;
+  border-radius: var(--radius-md) !important;
+}
+
+/* One bar, by frequency of use: pause, answer, capture, type; then pin, view, more. */
+body[data-theme='workbench'][data-view='listen'] .listen-toolbar > .inline > button[data-view='settings'] {
+  display: none;
+}
+body[data-theme='workbench'][data-view='listen'] #context-toggle::before {
+  display: none;
+}
+
+/* The two menus hold what is set once: labelled rows on one left edge. */
+body[data-theme='workbench'] .menu .menu-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+body[data-theme='workbench'] .menu .menu-group[hidden] {
+  display: none;
+}
+body[data-theme='workbench'] .menu .menu-group :is(.language-control, .size-row, .transparency-control) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 32px;
+  padding: 0 8px;
+  font-size: var(--text-md);
+}
+body[data-theme='workbench'] .menu .menu-group .language-control > span {
+  display: inline;
+}
+body[data-theme='workbench'] .menu .size-row span {
+  margin-right: auto;
+}
+body[data-theme='workbench'] .menu h3 {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  color: color-mix(in srgb, currentColor 60%, transparent);
+  margin: 12px 8px 4px;
+}
+body[data-theme='workbench'] .menu > h3:first-child,
+body[data-theme='workbench'] .menu > .menu-group:first-child > h3 {
+  margin-top: 4px;
+}
+body[data-theme='workbench'] .menu {
+  overflow-y: auto;
+}
+
+/* Reading: the answer leads, the transcript is context. */
+body[data-theme='workbench'] #transcript {
+  line-height: 1.6;
+}
+body[data-theme='workbench'] :is(#output, #workbench-output) {
+  line-height: 1.65;
+}
+body[data-theme='workbench'] .reading.answer :is(h1, h2, h3) {
+  font-size: 1.12em;
+  font-weight: var(--weight-strong);
+  margin: 1em 0 0.3em;
+}
+body[data-theme='workbench'] .reading.answer :is(h1, h2, h3):first-child {
+  margin-top: 0;
+}
+body[data-theme='workbench'] .reading.answer :is(ul, ol) {
+  padding-left: 1.4em;
+}
+body[data-theme='workbench'] .reading.answer li {
+  margin: 0.25em 0;
+}
+body[data-theme='workbench'] .reading.answer pre {
+  border: 0;
+  background: color-mix(in srgb, currentColor 7%, transparent);
+  font-size: 0.85em;
+  padding: 0.6em 0.8em;
+}
+#transcript .cue {
+  grid-template-columns: 40px minmax(0, 1fr);
+  column-gap: 12px;
+}
+#transcript .cue-time {
+  font-family: inherit;
+  font-size: 11px;
+  padding-top: 0.5em;
+  color: color-mix(in srgb, currentColor 50%, transparent);
+}
+
+/* Settings: one form grid, one control height, quiet chrome. */
+body[data-theme='workbench'] .workbench-save-note,
+body[data-theme='workbench'] .workbench-return,
+body[data-theme='workbench'][data-view='settings'][data-notice='0'] .statusbar {
+  display: none !important;
+}
+body[data-theme='workbench']
+  .settings-page
+  :is(select, input:not([type='checkbox']):not([type='range']):not([type='color']), button) {
+  min-height: 32px;
+  height: 32px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+body[data-theme='workbench'] .settings-page .card label:not(.color-control):not(:has(input[type='checkbox'])) {
+  grid-template-columns: 160px minmax(0, 320px);
+  column-gap: 16px;
+}
+body[data-theme='workbench'] select {
+  appearance: none;
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%236b6963' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+body[data-theme='workbench'][data-palette='dark'] select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23a3a19a' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+body[data-theme='workbench'] details > summary {
+  font-weight: var(--weight-regular);
+}
+body[data-theme='workbench'] .settings-page aside > .side.active {
+  font-weight: var(--weight-regular);
+}
+body[data-theme='workbench'] #usage:empty {
+  display: none;
+}
+
+/* Title bar: the tab you are on is ink with an underline; caption buttons are bare. */
+body[data-theme='workbench'] .capsule .nav {
+  background: transparent !important;
+  border-color: transparent !important;
+  border-radius: 0;
+  color: var(--wb-muted);
+  box-shadow: inset 0 -2px 0 transparent;
+}
+body[data-theme='workbench'] .capsule .nav.active {
+  color: var(--wb-ink);
+  box-shadow: inset 0 -2px 0 var(--wb-ink);
+}
+body[data-theme='workbench'][data-view='listen'] .capsule .nav {
+  color: color-mix(in srgb, var(--listen-text) 60%, transparent);
+}
+body[data-theme='workbench'][data-view='listen'] .capsule .nav.active {
+  color: var(--listen-text);
+  box-shadow: inset 0 -2px 0 var(--listen-text);
+}
+body[data-theme='workbench'] .window-controls button {
+  background: transparent !important;
+  border-color: transparent !important;
+  border-radius: 0;
+  width: 44px;
+}
+body[data-theme='workbench'] .window-controls button::before {
+  width: 12px;
+  height: 12px;
+  flex-basis: 12px;
+}
+body[data-theme='workbench'] .window-controls button:hover {
+  background: color-mix(in srgb, currentColor 10%, transparent) !important;
+}
+body[data-theme='workbench'] .window-controls button:last-child:hover {
+  background: #c42b1c !important;
+  color: #ffffff !important;
+}
+
+/* Bar labels: a control used mid-meeting says what it is. */
+body[data-theme='workbench'][data-view='listen'] .listen-toolbar :is(#context-toggle, [data-action='capture']) {
+  font-size: var(--text-sm) !important;
+  gap: 6px !important;
+  min-width: 0;
+  padding: 0 10px;
+}
+/* The answer button takes its tint from the reading colour, so it works on any panel colour. */
+body[data-theme='workbench'][data-view='listen'][data-listening='1']
+  .listen-page
+  .listen-toolbar
+  button[data-action='answer']:not(.swatch):not(.selected):not(.primary) {
+  background-color: color-mix(in srgb, var(--listen-text) 16%, transparent) !important;
+  border-color: color-mix(in srgb, var(--listen-text) 40%, transparent) !important;
+  color: var(--listen-text) !important;
+  font-weight: var(--weight-strong);
+}
+body[data-theme='workbench'][data-view='listen'] .listen-page .listen-toolbar #pause.primary {
+  background-color: color-mix(in srgb, var(--listen-text) 16%, transparent) !important;
+  border-color: color-mix(in srgb, var(--listen-text) 40%, transparent) !important;
+  color: var(--listen-text) !important;
+}
+body[data-theme='workbench'][data-view='listen'][data-listening='1'] .listen-page .listen-toolbar #pause.primary {
+  background-color: transparent !important;
+  border-color: color-mix(in srgb, var(--listen-text) 30%, transparent) !important;
+}
+body[data-theme='workbench'][data-view='listen'] .capsule .window-controls button {
+  background-color: transparent !important;
+  border-color: transparent !important;
+}
+body[data-theme='workbench'][data-view='listen'] .capsule .window-controls button:hover {
+  background-color: color-mix(in srgb, var(--listen-text) 12%, transparent) !important;
+}
+body[data-theme='workbench'][data-view='listen'] .capsule .window-controls button:last-child:hover {
+  background-color: #c42b1c !important;
+}
+
+/* Menu rows: transparent until hovered, 32px high, text on one left edge. */
+body[data-theme='workbench'] .listen-page .menu button:not(.swatch):not(.selected) {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  min-height: 32px;
+  text-align: left;
+}
+body[data-theme='workbench'] .listen-page .menu button:not(.swatch):hover {
+  background-color: var(--wb-selected) !important;
+}
+body[data-theme='workbench'] .menu .size-row span {
+  white-space: nowrap;
+}
+body[data-theme='workbench'] .menu .size-row button {
+  flex: 0 0 36px;
+  width: 36px;
+  min-width: 36px;
+  padding: 0;
+  text-align: center !important;
+  justify-content: center;
+}
+body[data-theme='workbench'] .menu .menu-group select {
+  min-width: 132px;
+  height: 30px;
+}
+body[data-theme='workbench'] .menu .transparency-control input[type='range'] {
+  flex: 1;
+}
+body[data-theme='workbench']
+  .settings-page
+  .card
+  label
+  > :is(select, input:not([type='checkbox']):not([type='range']):not([type='color'])) {
+  max-width: 320px;
+}
+body[data-theme='workbench'] .menu .size-row button {
+  display: inline-flex;
+  align-items: center;
 }

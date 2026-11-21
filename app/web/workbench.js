@@ -2,7 +2,13 @@
 (() => {
   const enabled = () => document.body.dataset.theme === 'workbench';
   Object.assign(translations, {
-    'Listening frost': '监听页磨砂度',
+    'Listening frost': '背景模糊',
+    'This session': '本次会话',
+    'When to answer': '回答时机',
+    'Text size': '字号',
+    Transcript: '转录',
+    'Capture full screen': '截取整个屏幕',
+    Stop: '停止',
     'Follow theme colors': '监听配色跟随主题',
     'Models & connections': '模型与连接',
     'Interface settings': '界面设置',
@@ -165,7 +171,7 @@
   const scenes = $('scene-picker').closest('.context-section');
   const memory = $('context-history').closest('.context-memory');
   const disclosureStates = new Map();
-  const returnButton = make('button', 'quiet', 'Return to listening');
+  const returnButton = make('button', 'quiet workbench-return', 'Return to listening');
   returnButton.onclick = () => view('listen');
   $('prepare').before(returnButton);
   const hint = make(
@@ -185,12 +191,54 @@
   output.tabIndex = 0;
   output.setAttribute('role', 'tabpanel');
   const taskInfo = make('div', 'workbench-task-info');
-  const cancel = make('button', 'quiet', 'Cancel answers');
+  const cancel = make('button', 'quiet', 'Stop');
   cancel.onclick = () => command('cancel_job', { id: Number(selected) }).catch(() => {});
   const taskLabel = make('span');
   taskInfo.append(taskLabel, cancel);
   document.querySelector('.answer-panel .reading-heading').after(workbenchTabs, taskInfo);
   $('output').after(output);
+  // Listen screen: the bar keeps what is used mid-meeting; set-once controls live in the two menus.
+  const sessionGroup = make('div', 'menu-group menu-session');
+  const modeLabel = make('label', 'language-control');
+  modeLabel.append(make('span', '', 'When to answer'));
+  sessionGroup.append(make('h3', '', 'This session'));
+  $('more-menu').prepend(sessionGroup);
+  const sizeGroup = make('div', 'menu-group menu-sizes');
+  sizeGroup.append(make('h3', '', 'Text size'));
+  const sizeRows = {};
+  for (const [key, text] of [
+    ['transcript_font_size', 'Transcript'],
+    ['answer_font_size', 'Answer'],
+  ]) {
+    sizeRows[key] = make('div', 'size-row');
+    sizeRows[key].append(make('span', '', text));
+    sizeGroup.append(sizeRows[key]);
+  }
+  $('layout-menu').prepend(sizeGroup);
+  const captureAll = document.querySelector('.listen-toolbar [data-action="capture_screen"]');
+  const languageControls = [...document.querySelectorAll('.transcript-panel .language-control')];
+  const fontSteps = [...document.querySelectorAll('.reading-heading .font-step')];
+  function arrangeListen() {
+    const on = enabled();
+    const place = (el, parent, before) => {
+      if (!on) return restore(el);
+      move(el, parent);
+      if (before) before.before(el);
+    };
+    for (const el of languageControls) place(el, sessionGroup);
+    place($('live-mode'), modeLabel);
+    place(modeLabel, sessionGroup);
+    place(captureAll, sessionGroup);
+    for (const button of fontSteps) place(button, sizeRows[button.dataset.font]);
+    place($('text-answer-toggle'), $('context-toggle').parentElement, $('context-toggle'));
+    place($('model-badge'), document.querySelector('.answer-panel .reading-heading'));
+    if (on) {
+      captureAll.dataset.originalLabel ??= captureAll.dataset.i;
+      captureAll.dataset.i = 'Capture full screen';
+      captureAll.textContent = t(captureAll.dataset.i);
+    }
+    sessionGroup.hidden = sizeGroup.hidden = !on;
+  }
   const liveButton = make('button', 'workbench-back-live', 'Back to live');
   liveButton.onclick = () => {
     $('transcript').scrollTop = $('transcript').scrollHeight;
@@ -247,7 +295,9 @@
     for (const el of appearanceItems) {
       if (document.body.dataset.view === 'settings')
         move(el, el.classList.contains('transparency-control') ? effectsFields : listeningControls);
-      else restore(el);
+      else if (enabled() && el.classList.contains('transparency-control')) {
+        move(el, sizeGroup);
+      } else restore(el);
     }
     const dock = enabled() && document.body.dataset.view === 'settings';
     if (dock !== contextDocked) {
@@ -270,6 +320,7 @@
     scheduleShape();
   }
   function themeChanged() {
+    arrangeListen();
     if (enabled()) {
       for (const child of [...$('context').children])
         if (child !== contextMain && child !== shelf && child !== templateBar) move(child, contextMain);
@@ -355,6 +406,7 @@
                 : 'Running'),
         ]),
       ];
+      workbenchTabs.dataset.single = items.length < 3 ? '1' : '0';
       workbenchTabs.replaceChildren(
         ...items.map(([id, text]) => {
           const button = make('button');

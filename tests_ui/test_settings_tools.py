@@ -40,8 +40,8 @@ class SettingsToolsTests(unittest.TestCase):
         self.page.wait_for_function("current.options.listen_transparency === '72'")
         self.page.screenshot(path=str(Path(listen.WEB).parents[1] / 'work/ui-redesign/interface-settings.png'))
         self.page.click('button.nav[data-view="listen"]')
-        self.assertTrue(self.page.is_visible('.listen-toolbar #listen_transparency'))
         self.page.click('#layout-button')
+        self.page.wait_for_selector('#layout-menu #listen_transparency', state='visible')
         self.assertTrue(self.page.is_visible('#layout-menu #listen_text_color'))
         self.assertEqual(self.page.input_value('#listen_transparency'), '72')
 

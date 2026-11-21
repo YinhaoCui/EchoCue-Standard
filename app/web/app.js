@@ -21,7 +21,7 @@ const translations = {
   'Auto · prefer fast models': '自动 · 优先快速模型',
   'Same provider as answers': '与回答使用相同平台',
   'Independent of answers. Uses the lowest supported thinking level. API keys are shared with the selected provider settings.':
-    '独立于回答模型，自动使用最低支持的思考档；API Key 沿用所选平台的配置。',
+    '字幕翻译可以单独选一个更快的模型，密钥与该平台共用。',
   Transparency: '透明度',
   Taskbar: '任务栏',
   'Tray icon': '托盘图标',
@@ -35,11 +35,11 @@ const translations = {
   'Edit transcript': '编辑转录',
   Vocabulary: '术语词典',
   'Export session': '导出会话',
-  'Transcript finalization': '转录定稿速度',
+  'Transcript finalization': '断句速度',
   'Incremental context': '增量上下文',
   'Request timeout': '请求超时',
   'Output tokens': '输出 Token',
-  'Cancel answers': '取消回答',
+  'Cancel answers': '停止',
   'Ask with text': '文字提问',
   'Translate now': '立刻翻译',
   'Your question': '输入问题',
@@ -162,7 +162,7 @@ const optionNames = {
   电脑: ['System audio', '电脑'],
   麦克风: ['Microphone', '麦克风'],
   '电脑 + 麦克风': ['System + microphone', '电脑 + 麦克风'],
-  长问题: ['Long question', '长问题'],
+  长问题: ['When I press Answer', '我点回答时'],
   快速问答: ['Quick Q&A', '快速问答'],
   开启: ['On', '开启'],
   关闭: ['Off', '关闭'],
@@ -293,7 +293,8 @@ function renderCueSheet(el, text) {
     time.className = 'cue-time';
     speech.className = 'cue-text';
     if (header) {
-      time.textContent = header[1];
+      time.textContent = header[1].slice(0, 5);
+      time.title = header[1];
       const who = [header[2], header[3]].filter(Boolean).map((name) => label(name));
       if (who.length) {
         const name = document.createElement('span');
@@ -788,6 +789,8 @@ function render(s) {
   $('pause').textContent = t(s.listening ? 'Pause' : 'Start transcription');
   $('pause').dataset.icon = s.listening ? 'pause-fill' : 'play-fill';
   document.body.dataset.listening = s.listening ? '1' : '0';
+  document.body.dataset.busy = s.jobs.some((j) => !j.done) ? '1' : '0';
+  document.body.dataset.notice = Date.now() > noticeUntil ? '0' : '1';
   $('prepare').disabled = s.preparing;
   // The header already shows the idle or listening state; the status bar is for messages.
   if (Date.now() > noticeUntil) {
@@ -1750,7 +1753,7 @@ for (const id of ['listen_text_color', 'listen_panel_color'])
 // leaves out fall back to the defaults, so "Default" doubles as a full reset.
 const LAYOUT_DEFAULTS = {
   listen_transparency: '12',
-  transcript_font_size: '21',
+  transcript_font_size: '18',
   answer_font_size: '21',
   listen_layout: '',
   listen_text_color: '#ffffff',

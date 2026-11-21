@@ -61,9 +61,9 @@ class WorkbenchTests(unittest.TestCase):
         self.assertEqual(
             rows,
             [
-                dict(time='10:21:04', who='', text='How are threads different from processes?', live=False),
+                dict(time='10:21', who='', text='How are threads different from processes?', live=False),
                 # Speech is shown as spoken: no Markdown, so the asterisks stay.
-                dict(time='10:21:19', who='Speaker 2', text='*Threads* share memory.', live=False),
+                dict(time='10:21', who='Speaker 2', text='*Threads* share memory.', live=False),
                 dict(time='', who='', text='and the live', live=True),
             ],
         )
@@ -157,8 +157,10 @@ class WorkbenchTests(unittest.TestCase):
         self.page.screenshot(path=str(folder / 'dark-context.png'))
 
     def test_color_swatches_and_applied_colors_are_exact(self):
+        self.page.click('#layout-button')  # transparency lives in the View menu
         self.page.locator('#listen_transparency').fill('1')
         self.page.locator('#listen_transparency').dispatch_event('change')
+        self.page.click('#layout-button')
         self.page.click('#layout-button')
         for field, color, rgb in [
             ('listen_text_color', '#fdd835', 'rgb(253, 216, 53)'),
@@ -185,9 +187,11 @@ class WorkbenchTests(unittest.TestCase):
         )
         self.page.wait_for_function('window.__nativeFrost?.view === "listen"')
         frost = self.page.evaluate('window.__nativeFrost.frost')
+        self.page.click('#layout-button')
         self.page.locator('#listen_transparency').fill('99')
         self.page.locator('#listen_transparency').dispatch_event('change')
         self.page.wait_for_function("current.options.listen_transparency === '99'")
+        self.page.click('#layout-button')
         self.assertEqual(
             self.page.locator('.capsule').evaluate('el=>getComputedStyle(el).backgroundColor'),
             'rgba(22, 22, 21, 0.01)' if self.theme == 'cosmic' else 'rgba(243, 241, 237, 0.01)',

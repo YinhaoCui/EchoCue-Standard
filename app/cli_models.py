@@ -1,4 +1,5 @@
 """Model catalogs for the local-login CLI providers."""
+
 import threading
 import tkinter as tk
 from tkinter import ttk
@@ -39,9 +40,11 @@ class CliModels:
 
     def refresh_cli_models(self):
         provider = self.provider.get()
-        if provider in self.cli_loading: return
+        if provider in self.cli_loading:
+            return
         self.cli_loading.add(provider)
         self.cli_model_note.set('正在读取账号模型目录…')
+
         def read():
             try:
                 models, extra = providers.read_cli_models(provider, details=True)
@@ -50,20 +53,31 @@ class CliModels:
                     extra = None
                 self.events.put(('cli_models', (provider, models, extra or '', '')))
             except Exception:
-                self.events.put(('cli_models', (provider, [], '', '目录读取失败，请检查该 CLI 的登录和网络；仍可手动输入模型 ID。')))
+                self.events.put(
+                    ('cli_models', (provider, [], '', '目录读取失败，请检查该 CLI 的登录和网络；仍可手动输入模型 ID。'))
+                )
+
         threading.Thread(target=read, daemon=True).start()
 
     def receive_cli_models(self, result):
         provider, models, raw, error = result
         self.cli_loading.discard(provider)
-        if not error: self.cli_catalogs[provider] = models
+        if not error:
+            self.cli_catalogs[provider] = models
         if not error and models and provider == providers.ANTIGRAVITY:
             from antigravity_support import set_model_catalog
+
             set_model_catalog(models)
         if self.provider.get() == provider:
-            self.cli_model_note.set(self.cli_catalog_note(provider) + ' ' + (error or f'已读取 {len(models)} 个模型；可用权限以账号为准。'))
+            self.cli_model_note.set(
+                self.cli_catalog_note(provider) + ' ' + (error or f'已读取 {len(models)} 个模型；可用权限以账号为准。')
+            )
         if raw and not models:
-            window = tk.Toplevel(self.root); window.title('Antigravity 模型目录'); window.geometry('760x500')
+            window = tk.Toplevel(self.root)
+            window.title('Antigravity 模型目录')
+            window.geometry('760x500')
             ttk.Label(window, text='从目录复制模型 ID，填入主窗口的回答模型。').pack(anchor='w', padx=12, pady=12)
-            text = tk.Text(window, wrap='word'); text.pack(fill='both', expand=True, padx=12, pady=12)
-            text.insert('end', raw); text.configure(state='disabled')
+            text = tk.Text(window, wrap='word')
+            text.pack(fill='both', expand=True, padx=12, pady=12)
+            text.insert('end', raw)
+            text.configure(state='disabled')

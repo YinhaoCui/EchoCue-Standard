@@ -1,4 +1,5 @@
 """Realtime captions must stay current without losing finalized source speech."""
+
 import queue
 import threading
 import unittest
@@ -12,17 +13,27 @@ from caption_translation import CaptionPresenter
 class RealtimeCaptionTests(unittest.TestCase):
     def setUp(self):
         self.app = SimpleNamespace(
-            content_language=lambda _: 'bilingual', locale=SimpleNamespace(language='zh', t=lambda x: x),
-            closing=False, follow_live=True, live_dirty=False, events=queue.Queue(), root=Mock(),
-            live_drafts={}, capture=SimpleNamespace(active=lambda: True), mic=SimpleNamespace(active=lambda: True),
+            content_language=lambda _: 'bilingual',
+            locale=SimpleNamespace(language='zh', t=lambda x: x),
+            closing=False,
+            follow_live=True,
+            live_dirty=False,
+            events=queue.Queue(),
+            root=Mock(),
+            live_drafts={},
+            capture=SimpleNamespace(active=lambda: True),
+            mic=SimpleNamespace(active=lambda: True),
             live=SimpleNamespace(lock=threading.RLock(), records=[], sources={}, submitted=0, completed=0),
-            caption_models=SimpleNamespace(inputs=lambda: ({'key': ''}, None)), status=Mock())
+            caption_models=SimpleNamespace(inputs=lambda: ({'key': ''}, None)),
+            status=Mock(),
+        )
         self.presenter = CaptionPresenter(self.app)
         self.addCleanup(self.presenter.close)
 
     def record(self, text, source='电脑'):
-        record = dict(source=source, body=text, text='[12:00:00 ' + source + ']\n' + text,
-                      sequence=len(self.app.live.records) + 1)
+        record = dict(
+            source=source, body=text, text='[12:00:00 ' + source + ']\n' + text, sequence=len(self.app.live.records) + 1
+        )
         self.app.live.records.append(record)
         return record
 
@@ -133,10 +144,12 @@ class RealtimeCaptionTests(unittest.TestCase):
     def test_at_most_two_previews_leave_capacity_for_finalized_speech(self):
         release, started = threading.Event(), queue.Queue()
         self.addCleanup(release.set)
+
         def translate(inputs, text, language, cancel, app, **kwargs):
             started.put(text)
             release.wait(2)
             return '译文'
+
         with patch('caption_translation.translate', side_effect=translate):
             for source in ('电脑', '麦克风', '第三来源'):
                 self.draft('Please explain how this works ' + source, 10, source=source)
@@ -183,6 +196,7 @@ class RealtimeCaptionTests(unittest.TestCase):
 
     def test_live_controller_displays_preview_without_adding_it_to_final_records(self):
         from audio_answer import App
+
         self.app.captions = self.presenter
         self.app.live_text = ''
         text = 'Please explain how this works'
@@ -207,8 +221,9 @@ class RealtimeCaptionTests(unittest.TestCase):
             self.draft('Could you describe another system', 10.6)
             self.assertFalse(self.presenter.pending)
             self.draft('Could you describe another system', 11)
-        self.assertEqual(list(self.presenter.preview_queue.values()),
-                         [('bilingual', 'Could you describe another system')])
+        self.assertEqual(
+            list(self.presenter.preview_queue.values()), [('bilingual', 'Could you describe another system')]
+        )
 
     def test_cached_translation_of_live_draft_is_still_marked_provisional(self):
         text = 'Please explain how this works'

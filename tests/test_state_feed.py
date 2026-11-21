@@ -10,6 +10,7 @@ from glass_bridge import state_query
 
 class Reader:
     """Applies feed replies the way app/web/app.js does."""
+
     def __init__(self, feed):
         self.feed, self.boot, self.rev, self.base = feed, '', -1, None
         self.texts = {'transcript': [None, ''], 'output': [None, '']}
@@ -25,7 +26,7 @@ class Reader:
         for key, entry in data.items():
             if key in self.texts:
                 old = self.texts[key][1]
-                text = entry['text'] if 'text' in entry else old[:entry['keep']] + entry['add']
+                text = entry['text'] if 'text' in entry else old[: entry['keep']] + entry['add']
                 self.texts[key] = [entry['v'], text]
         return data
 
@@ -97,10 +98,13 @@ class StateFeedTests(unittest.TestCase):
 
 class StateQueryTests(unittest.TestCase):
     def test_parses_and_clamps(self):
-        self.assertEqual(state_query('/state?rev=4&boot=ab12&tv=9&ov=&wait=30'),
-                         dict(rev=4, boot='ab12', versions={'transcript': 9, 'output': None}, wait=1.0))
-        self.assertEqual(state_query('/state'),
-                         dict(rev=-1, boot='', versions={'transcript': None, 'output': None}, wait=0.0))
+        self.assertEqual(
+            state_query('/state?rev=4&boot=ab12&tv=9&ov=&wait=30'),
+            dict(rev=4, boot='ab12', versions={'transcript': 9, 'output': None}, wait=1.0),
+        )
+        self.assertEqual(
+            state_query('/state'), dict(rev=-1, boot='', versions={'transcript': None, 'output': None}, wait=0.0)
+        )
         for bad in ('wait=nan', 'wait=-3', 'wait=x', 'rev=x&tv=1.5'):
             with self.subTest(bad=bad):
                 query = state_query('/state?' + bad)

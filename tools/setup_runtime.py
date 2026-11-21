@@ -1,4 +1,5 @@
 """Install local, pinned Windows dependencies without changing system Python."""
+
 import hashlib
 import io
 import json
@@ -10,9 +11,11 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parent.parent
 
+
 def download(url):
     with urllib.request.urlopen(url, timeout=120) as response:
         return response.read()
+
 
 def wheel(name, version):
     target = ROOT / 'vendor'
@@ -30,6 +33,7 @@ def wheel(name, version):
     zipfile.ZipFile(io.BytesIO(blob)).extractall(target)
     print(f'Installed {name} {version}', flush=True)
 
+
 def main():
     if sys.platform != 'win32' or platform.machine().lower() not in ('amd64', 'x86_64'):
         raise RuntimeError('This package requires Windows x64.')
@@ -37,8 +41,10 @@ def main():
     if sys.version_info >= (3, 13):
         wheel('audioop-lts', '0.2.2')
     from setup_streaming import main as setup_streaming
+
     setup_streaming()
     print('Setup complete.', flush=True)
+
 
 if __name__ == '__main__':
     main()

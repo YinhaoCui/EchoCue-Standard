@@ -1,4 +1,5 @@
 """Incremental caption display and bounded concurrency under a stalled translation."""
+
 import queue
 import threading
 import unittest
@@ -11,9 +12,15 @@ from caption_translation import CaptionPresenter, translate
 class CaptionStreamingTests(unittest.TestCase):
     def setUp(self):
         self.app = SimpleNamespace(
-            content_language=lambda _: 'bilingual', locale=SimpleNamespace(language='zh'),
-            closing=False, follow_live=True, live_dirty=False, events=queue.Queue(),
-            caption_models=SimpleNamespace(inputs=lambda: ({'key': ''}, None)), status=Mock())
+            content_language=lambda _: 'bilingual',
+            locale=SimpleNamespace(language='zh'),
+            closing=False,
+            follow_live=True,
+            live_dirty=False,
+            events=queue.Queue(),
+            caption_models=SimpleNamespace(inputs=lambda: ({'key': ''}, None)),
+            status=Mock(),
+        )
         self.presenter = CaptionPresenter(self.app)
         self.release = threading.Event()
         self.addCleanup(self.release.set)
@@ -32,17 +39,20 @@ class CaptionStreamingTests(unittest.TestCase):
 
     def test_chinese_appears_before_entire_translation_finishes(self):
         started = threading.Event()
-        inputs = dict(provider='Kimi', model='fixture', key='', options={'lm_base': ''},
-                      effort='自动', display_model='fixture')
+        inputs = dict(
+            provider='Kimi', model='fixture', key='', options={'lm_base': ''}, effort='自动', display_model='fixture'
+        )
         self.app.caption_models.inputs = lambda: (inputs, None)
         self.app.token_ledger = Mock()
         self.app.session_id = 'fixture'
+
         def slow(*args, **kwargs):
             emit = args[6]
             emit('你好')
             started.set()
             self.release.wait(3)
             emit('世界')
+
         with patch('audio_answer.compatible_answer', side_effect=slow):
             self.presenter.body('Hello world')
             self.assertTrue(started.wait(3))
@@ -57,11 +67,13 @@ class CaptionStreamingTests(unittest.TestCase):
 
     def test_stalled_first_segment_does_not_block_later_segments(self):
         started = queue.Queue()
+
         def slow(inputs, text, language, cancel, app, **kwargs):
             started.put(text)
             if text == 'First':
                 self.release.wait(3)
             return '译文' + text
+
         with patch('caption_translation.translate', side_effect=slow):
             for text in ('First', 'Second', 'Third', 'Fourth'):
                 self.presenter.body(text)
@@ -101,10 +113,12 @@ class CaptionStreamingTests(unittest.TestCase):
 
     def test_backlog_gives_new_speech_a_slot_without_dropping_old_speech(self):
         started = queue.Queue()
+
         def slow(inputs, text, language, cancel, app, **kwargs):
             started.put(text)
             self.release.wait(3)
             return '译文' + text
+
         with patch('caption_translation.translate', side_effect=slow):
             for text in ('One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven'):
                 self.presenter.body(text)
@@ -118,10 +132,10 @@ class CaptionStreamingTests(unittest.TestCase):
             self.release.set()
 
     def test_out_of_order_results_remain_in_transcript_order(self):
-        records = [dict(source='电脑', body=text, text='[12:00:00 电脑]\n' + text)
-                   for text in ('First.', 'Second.')]
+        records = [dict(source='电脑', body=text, text='[12:00:00 电脑]\n' + text) for text in ('First.', 'Second.')]
         self.app.live = SimpleNamespace(lock=threading.Lock(), records=records)
         from live_transcription import append_transcript
+
         original, source = '', None
         for record in records:
             original, source = append_transcript(original, source, record)
@@ -135,19 +149,23 @@ class CaptionStreamingTests(unittest.TestCase):
 
     def test_transport_buffers_chunks_and_returns_complete_translation(self):
         app = SimpleNamespace(token_ledger=Mock(), session_id='fixture', events=queue.Queue())
-        inputs = dict(provider='Kimi', model='fixture', key='', options={'lm_base': ''},
-                      effort='自动', display_model='fixture')
+        inputs = dict(
+            provider='Kimi', model='fixture', key='', options={'lm_base': ''}, effort='自动', display_model='fixture'
+        )
+
         def answer(*args, **kwargs):
             emit = args[6]
             emit('你')
             self.assertTrue(app.events.empty())
             emit('好')
             self.assertTrue(app.events.empty())
+
         with patch('audio_answer.compatible_answer', side_effect=answer):
             self.assertEqual(translate(inputs, 'Hello', 'zh', threading.Event(), app), '你好')
 
     def test_completed_caption_event_reaches_the_controller(self):
         from audio_answer import App
+
         controller = SimpleNamespace(captions=self.presenter)
         key = ('bilingual', 'Hello')
         self.presenter.workers[key] = threading.Event()

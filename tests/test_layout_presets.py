@@ -14,9 +14,14 @@ class LayoutValueTests(unittest.TestCase):
         self.assertEqual(layout_value('listen_text_bold', '1'), '1')
 
     def test_rejects_bad_values(self):
-        for key, value in (('listen_transparency', '0'), ('transcript_font_size', '99'),
-                           ('listen_panel_color', 'red'), ('listen_text_outline', 'yes'),
-                           ('listen_layout', '1,2'), ('provider', 'x')):
+        for key, value in (
+            ('listen_transparency', '0'),
+            ('transcript_font_size', '99'),
+            ('listen_panel_color', 'red'),
+            ('listen_text_outline', 'yes'),
+            ('listen_layout', '1,2'),
+            ('provider', 'x'),
+        ):
             with self.subTest(key=key), self.assertRaises(ValueError):
                 layout_value(key, value)
 
@@ -28,17 +33,24 @@ class LayoutValueTests(unittest.TestCase):
 
 class PresetTests(unittest.TestCase):
     def test_round_trip(self):
-        raw = json.dumps([{'name': ' Meeting ', 'values': {'listen_transparency': '30', 'listen_text_color': '#FFEE00'}}])
-        self.assertEqual(json.loads(listen_presets(raw)),
-                         [{'name': 'Meeting', 'values': {'listen_transparency': '30', 'listen_text_color': '#ffee00'}}])
+        raw = json.dumps(
+            [{'name': ' Meeting ', 'values': {'listen_transparency': '30', 'listen_text_color': '#FFEE00'}}]
+        )
+        self.assertEqual(
+            json.loads(listen_presets(raw)),
+            [{'name': 'Meeting', 'values': {'listen_transparency': '30', 'listen_text_color': '#ffee00'}}],
+        )
         self.assertEqual(listen_presets(''), '')
         self.assertEqual(listen_presets('[]'), '')
 
     def test_rejects_bad_presets(self):
         good = {'name': 'A', 'values': {}}
         bad = [
-            'not json', '{}', [good] * 2,  # duplicate names
-            [{'name': '', 'values': {}}], [{'name': 'x' * 41, 'values': {}}],
+            'not json',
+            '{}',
+            [good] * 2,  # duplicate names
+            [{'name': '', 'values': {}}],
+            [{'name': 'x' * 41, 'values': {}}],
             [{'name': 'A', 'values': {'api_key': 'x'}}],
             [{'name': 'A', 'values': {'listen_transparency': '500'}}],
             [{'name': str(n), 'values': {}} for n in range(MAX_PRESETS + 1)],
@@ -68,6 +80,7 @@ class LayoutSavingTests(unittest.TestCase):
 
     def test_bridge_applies_preset_whole_or_not_at_all(self):
         from glass_bridge import GlassBridge
+
         bridge = GlassBridge.__new__(GlassBridge)
         bridge.app = self.ui
         bridge.window_state = {}
@@ -80,10 +93,16 @@ class LayoutSavingTests(unittest.TestCase):
 
 
 class LayoutLoadingTests(unittest.TestCase):
-    initial_settings = {'ui_language': 'zh', 'remember_keys': False,
-                        'advanced': {'listen_transparency': '20'},
-                        'layout': {'listen_transparency': '33', 'listen_text_bold': '1',
-                                   'listen_presets': '[{"name":"A","values":{}}]'}}
+    initial_settings = {
+        'ui_language': 'zh',
+        'remember_keys': False,
+        'advanced': {'listen_transparency': '20'},
+        'layout': {
+            'listen_transparency': '33',
+            'listen_text_bold': '1',
+            'listen_presets': '[{"name":"A","values":{}}]',
+        },
+    }
     setUp = test_sessions.UITests.setUp
     tearDown = test_sessions.UITests.tearDown
 

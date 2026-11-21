@@ -13,6 +13,7 @@ and answer, even when nothing had changed. Now:
 Only the common-prefix length between neighbouring versions is kept, never old
 copies of the text, so memory stays flat however long the transcript gets.
 """
+
 import json
 import secrets
 import threading

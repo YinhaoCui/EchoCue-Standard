@@ -1,5 +1,6 @@
 """Browser tests for popups.js: select lists, the color picker, tooltips and the
 right-click menu are drawn in the page, so no WebView2 popup window is opened."""
+
 import os
 import unittest
 

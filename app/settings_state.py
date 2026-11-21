@@ -1,4 +1,5 @@
 """Saved answer options and reference context. Holds state only; the web UI edits it."""
+
 import tkinter as tk
 from account_support import load_settings
 import providers
@@ -6,7 +7,12 @@ from caption_models import CAPTION_PROVIDERS
 from meeting_assistance import DEFAULTS as MEETING_DEFAULTS, OPTIONS as MEETING_OPTIONS
 from streaming_asr import ASR_MODELS, DEFAULT_ASR
 
-PRESENTATION_DEFAULTS = {'ui_theme': 'workbench', 'midnight_split': '40', 'listen_frost': '35', 'listen_theme_colors': '1'}
+PRESENTATION_DEFAULTS = {
+    'ui_theme': 'workbench',
+    'midnight_split': '40',
+    'listen_frost': '35',
+    'listen_theme_colors': '1',
+}
 
 
 def presentation_value(key, value):
@@ -37,27 +43,53 @@ def presentation_value(key, value):
 DEFAULT_OPTIONS = {
     **PRESENTATION_DEFAULTS,
     **MEETING_DEFAULTS,
-    'source': '电脑', 'asr_engine': DEFAULT_ASR, 'asr_pause': '快速 · 0.35 秒',
-    'caption_provider': '', 'caption_model': '',
-    'gemini_route': '文字（先转录）', 'lm_base': 'http://127.0.0.1:1234/v1',
+    'source': '电脑',
+    'asr_engine': DEFAULT_ASR,
+    'asr_pause': '快速 · 0.35 秒',
+    'caption_provider': '',
+    'caption_model': '',
+    'gemini_route': '文字（先转录）',
+    'lm_base': 'http://127.0.0.1:1234/v1',
     **{option: '' for option in providers.MODEL_OPTIONS},
-    'deadline': '不限时', 'max_output': '服务默认', 'content_policy': 'unrestricted',
-    'question_mode': '长问题', 'speculate': '仅疑问句', 'warm_context': '开启', 'thinking_policy': '自动',
-    'incremental_context': '开启', 'spare_session': '关闭', 'background_mode': 'frosted',
-    'listen_transparency': '12', 'transcript_font_size': '21', 'answer_font_size': '21', 'listen_layout': '',
-    'listen_text_color': '#ffffff', 'listen_panel_color': '#213953', 'listen_text_bold': '0', 'listen_text_outline': '0',
+    'deadline': '不限时',
+    'max_output': '服务默认',
+    'content_policy': 'unrestricted',
+    'question_mode': '长问题',
+    'speculate': '仅疑问句',
+    'warm_context': '开启',
+    'thinking_policy': '自动',
+    'incremental_context': '开启',
+    'spare_session': '关闭',
+    'background_mode': 'frosted',
+    'listen_transparency': '12',
+    'transcript_font_size': '21',
+    'answer_font_size': '21',
+    'listen_layout': '',
+    'listen_text_color': '#ffffff',
+    'listen_panel_color': '#213953',
+    'listen_text_bold': '0',
+    'listen_text_outline': '0',
     'listen_presets': '',
 }
 # Listen-page look. Saved on every exit, even when 'Remember keys' is off,
 # because none of it is secret. A preset stores these same keys.
-LAYOUT_KEYS = ('listen_transparency', 'transcript_font_size', 'answer_font_size', 'listen_layout',
-               'listen_text_color', 'listen_panel_color', 'listen_text_bold', 'listen_text_outline')
+LAYOUT_KEYS = (
+    'listen_transparency',
+    'transcript_font_size',
+    'answer_font_size',
+    'listen_layout',
+    'listen_text_color',
+    'listen_panel_color',
+    'listen_text_bold',
+    'listen_text_outline',
+)
 SAVED_LAYOUT_KEYS = LAYOUT_KEYS + ('listen_presets', *PRESENTATION_DEFAULTS)
 
 
 class SettingsState:
     def init_advanced(self):
         import audio_answer as a
+
         self.mic = a.Capture()
         self.history = []
         self.history_epoch = 0
@@ -70,6 +102,7 @@ class SettingsState:
         self.prompt_templates_error = ''
         try:
             from prompt_templates import validate_templates
+
             self.prompt_templates = validate_templates(load_settings(a.data_path(a.ROOT, 'prompt_templates.dpapi')))
         except Exception:
             self.prompt_templates_error = '模板文件读取失败；为保护已有内容，未覆盖原文件。'
@@ -80,6 +113,7 @@ class SettingsState:
                 if isinstance(translation.get(key), str):
                     options[key] = translation[key]
         from web_translation import DEEPL, GOOGLE
+
         replacement = {'DLX': DEEPL, 'Google Cloud Translation': GOOGLE}.get(options.get('caption_provider'))
         if replacement:
             options.update(caption_provider=replacement, caption_model='')
@@ -138,6 +172,7 @@ class SettingsState:
 
     def clear_context(self):
         import audio_answer as a
+
         self.context_changed()
         self.profile = self.documents = self.context_summary = ''
         self.context_images.clear()
@@ -149,12 +184,21 @@ class SettingsState:
     def context_instructions(self):
         from session_data import compact_context, record_text
         from prompt_language import language
-        with self.live.lock: records = list(self.live.records)
-        return compact_context(self.profile, self.documents, self.context_summary,
-                               self.history if self.use_history.get() else [], record_text(records), records,
-                               language=language(self.provider.get(), self.model.get()))
+
+        with self.live.lock:
+            records = list(self.live.records)
+        return compact_context(
+            self.profile,
+            self.documents,
+            self.context_summary,
+            self.history if self.use_history.get() else [],
+            record_text(records),
+            records,
+            language=language(self.provider.get(), self.model.get()),
+        )
 
     def start_analysis(self):
         if not (self.profile.strip() or self.documents.strip() or self.context_images):
-            self.status.set('请先在“资料与上下文”导入文件或填写个人资料，并应用。'); return
+            self.status.set('请先在“资料与上下文”导入文件或填写个人资料，并应用。')
+            return
         self.ask(analysis=True)

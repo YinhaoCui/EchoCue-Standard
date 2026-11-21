@@ -1,4 +1,5 @@
 """Installed data survives app replacement; portable data stays alongside the app."""
+
 from pathlib import Path
 import tempfile
 import unittest
@@ -15,6 +16,8 @@ class AppPathsTests(unittest.TestCase):
             (root / 'installed.flag').touch()
             with patch.dict('os.environ', LOCALAPPDATA=str(Path(folder) / 'user')):
                 self.assertEqual(storage_root(root), Path(folder) / 'user/EchoCue')
-                self.assertEqual(data_path(root, 'sessions.sqlite3'), Path(folder) / 'user/EchoCue/data/sessions.sqlite3')
+                self.assertEqual(
+                    data_path(root, 'sessions.sqlite3'), Path(folder) / 'user/EchoCue/data/sessions.sqlite3'
+                )
                 (root / 'EDITION').write_text('standard')
                 self.assertEqual(storage_root(root), Path(folder) / 'user/EchoCue Standard')

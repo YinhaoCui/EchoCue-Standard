@@ -1,4 +1,5 @@
 """Bilingual presentation retains source speech and independent output choices."""
+
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -11,8 +12,9 @@ import test_sessions
 
 class BilingualCaptionTests(unittest.TestCase):
     def setUp(self):
-        self.app = SimpleNamespace(content_language=lambda _: 'bilingual',
-                                   locale=SimpleNamespace(language='en'), closing=False)
+        self.app = SimpleNamespace(
+            content_language=lambda _: 'bilingual', locale=SimpleNamespace(language='en'), closing=False
+        )
         self.presenter = CaptionPresenter(self.app)
 
     def test_drafts_and_pending_translation_keep_original_speech(self):
@@ -60,6 +62,7 @@ class BilingualSettingsTests(unittest.TestCase):
                 bridge.settings({'answer': 'original'})
         finally:
             bridge.close()
+
 
 class BilingualRestoreTests(unittest.TestCase):
     tearDown = test_sessions.UITests.tearDown

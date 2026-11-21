@@ -1,4 +1,5 @@
 """Context edits must not leak stale analysis or reuse an obsolete provider lane."""
+
 import unittest
 import tempfile
 from pathlib import Path
@@ -16,10 +17,19 @@ class ContextEditorTests(unittest.TestCase):
     def test_prompt_library_is_encrypted_and_overwrite_requires_confirmation(self):
         from account_support import load_settings
         import audio_answer
+
         bridge = GlassBridge(self.ui)
         try:
             with tempfile.TemporaryDirectory() as folder, patch.object(audio_answer, 'ROOT', Path(folder)):
-                bridge.command(dict(action='save_prompt_template', id='save', version=0, name='Interview', text='private prompt fixture'))
+                bridge.command(
+                    dict(
+                        action='save_prompt_template',
+                        id='save',
+                        version=0,
+                        name='Interview',
+                        text='private prompt fixture',
+                    )
+                )
                 self.assertTrue(bridge.prompt_result['ok'])
                 path = Path(folder) / 'data/prompt_templates.dpapi'
                 self.assertNotIn(b'private prompt fixture', path.read_bytes())
@@ -28,10 +38,21 @@ class ContextEditorTests(unittest.TestCase):
                 self.assertTrue(loaded.startswith('private prompt fixture'))
                 self.assertIn('Start with the answer; skip staged introductions.', loaded)
                 self.assertEqual(loaded.count('Writing rules:'), 1)
-                bridge.command(dict(action='save_prompt_template', id='replace', version=1, name='Interview', text='replacement'))
+                bridge.command(
+                    dict(action='save_prompt_template', id='replace', version=1, name='Interview', text='replacement')
+                )
                 self.assertFalse(bridge.prompt_result['ok'])
                 self.assertEqual(self.ui.prompt_templates['Interview'], 'private prompt fixture')
-                bridge.command(dict(action='save_prompt_template', id='confirmed', version=1, name='Interview', text='replacement', overwrite=True))
+                bridge.command(
+                    dict(
+                        action='save_prompt_template',
+                        id='confirmed',
+                        version=1,
+                        name='Interview',
+                        text='replacement',
+                        overwrite=True,
+                    )
+                )
                 self.assertTrue(bridge.prompt_result['ok'])
                 bridge.command(dict(action='delete_prompt_template', id='delete', version=2, name='Interview'))
                 self.assertTrue(bridge.prompt_result['ok'])
@@ -52,6 +73,7 @@ class ContextEditorTests(unittest.TestCase):
 
     def test_saved_context_includes_prompt_and_reload_reads_it(self):
         import settings_state
+
         bridge = GlassBridge(self.ui)
         try:
             self.ui.instructions.set('Answer as a tutor')
@@ -59,7 +81,11 @@ class ContextEditorTests(unittest.TestCase):
                 bridge.command(dict(action='save_context'))
             payload = save.call_args.args[1]
             self.assertEqual(payload['instructions'], 'Answer as a tutor')
-            with patch.object(settings_state, 'load_settings', side_effect=lambda path: payload if path.name == 'context.dpapi' else {}):
+            with patch.object(
+                settings_state,
+                'load_settings',
+                side_effect=lambda path: payload if path.name == 'context.dpapi' else {},
+            ):
                 self.ui.init_advanced()
             self.assertEqual(self.ui.saved_prompt, 'Answer as a tutor')
         finally:
@@ -68,15 +94,24 @@ class ContextEditorTests(unittest.TestCase):
     def test_applied_prompt_reaches_stateless_and_stateful_requests(self):
         from answer_jobs import build_prompt
         from generation_context import ContextPrompt
+
         bridge = GlassBridge(self.ui)
         try:
             self.ui.provider.set('Codex')
-            bridge.command(dict(action='apply_context', id='apply', version=self.ui.context_version,
-                                values=dict(instructions='Use three concise bullet points.')))
+            bridge.command(
+                dict(
+                    action='apply_context',
+                    id='apply',
+                    version=self.ui.context_version,
+                    values=dict(instructions='Use three concise bullet points.'),
+                )
+            )
             inputs, error = self.ui.request_inputs()
             self.assertIsNone(error)
             self.assertIn('Use three concise bullet points.', build_prompt(inputs, 'question'))
-            self.assertIn('Use three concise bullet points.', ContextPrompt(inputs, 'question', 'SYSTEM').state['instructions'])
+            self.assertIn(
+                'Use three concise bullet points.', ContextPrompt(inputs, 'question', 'SYSTEM').state['instructions']
+            )
         finally:
             bridge.close()
 
@@ -85,13 +120,18 @@ class ContextEditorTests(unittest.TestCase):
         try:
             version = self.ui.context_version
             self.ui.context_summary = 'old analysis'
-            bridge.command(dict(action='apply_context', id='one', version=version,
-                                values=dict(profile='new notes', documents='new source')))
+            bridge.command(
+                dict(
+                    action='apply_context',
+                    id='one',
+                    version=version,
+                    values=dict(profile='new notes', documents='new source'),
+                )
+            )
             self.assertTrue(bridge.context_edit['ok'])
             self.assertEqual(self.ui.context_version, version + 1)
             self.assertEqual(self.ui.context_summary, '')
-            bridge.command(dict(action='apply_context', id='two', version=version,
-                                values=dict(profile='stale notes')))
+            bridge.command(dict(action='apply_context', id='two', version=version, values=dict(profile='stale notes')))
             self.assertFalse(bridge.context_edit['ok'])
             self.assertEqual(self.ui.profile, 'new notes')
         finally:

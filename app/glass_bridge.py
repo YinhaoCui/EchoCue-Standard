@@ -1,4 +1,5 @@
 """Loopback-only web presentation adapter. Tk operations stay on the UI thread."""
+
 import base64
 import json
 import mimetypes
@@ -28,18 +29,26 @@ def presentation_jobs(app):
     result = []
     for identity, job in app.jobs.items():
         region = getattr(app, 'job_regions', {}).get(identity)
-        span = offsets[region:region + 2] if isinstance(region, int) and region >= 0 else []
-        result.append(dict(id=identity, done=job.get('done', False),
-                           completed=job.get('completed', False),
-                           label=job.get('label', ''), state=app.locale.t(job.get('state', '')),
-                           provider=job.get('provider', ''), model=job.get('model', ''),
-                           span=span if len(span) == 2 else None))
+        span = offsets[region : region + 2] if isinstance(region, int) and region >= 0 else []
+        result.append(
+            dict(
+                id=identity,
+                done=job.get('done', False),
+                completed=job.get('completed', False),
+                label=job.get('label', ''),
+                state=app.locale.t(job.get('state', '')),
+                provider=job.get('provider', ''),
+                model=job.get('model', ''),
+                span=span if len(span) == 2 else None,
+            )
+        )
     return result
 
 
 def state_query(path):
     """Read rev, boot, text versions and wait from a /state URL. Bad values mean 'send everything'."""
     from urllib.parse import parse_qs, urlsplit
+
     query = {k: v[-1] for k, v in parse_qs(urlsplit(path).query).items()}
 
     def number(name, default):
@@ -47,6 +56,7 @@ def state_query(path):
             return int(query[name])
         except (KeyError, ValueError):
             return default
+
     try:
         wait = min(STATE_WAIT, max(0.0, float(query.get('wait', 0))))
     except ValueError:
@@ -77,8 +87,11 @@ def listen_layout(value):
     elif len(sizes) == 3:
         sizes += [sizes[2]] * 2
     toolbar, transcript, *widths = sizes
-    if not ((toolbar == 0 or 56 <= toolbar <= 200) and (transcript == 0 or 100 <= transcript <= 4000)
-            and all(width == 0 or 240 <= width <= 10000 for width in widths)):
+    if not (
+        (toolbar == 0 or 56 <= toolbar <= 200)
+        and (transcript == 0 or 100 <= transcript <= 4000)
+        and all(width == 0 or 240 <= width <= 10000 for width in widths)
+    ):
         raise ValueError('Invalid panel layout')
     return '' if not any(sizes) else ','.join(map(str, sizes))
 
@@ -115,6 +128,7 @@ MAX_PRESETS, PRESET_NAME = 5, 40
 def listen_presets(value):
     """Validate saved layout presets: a JSON list of {name, values}."""
     from settings_state import LAYOUT_KEYS
+
     if value in ('', None, []):
         return ''
     items = json.loads(value) if isinstance(value, str) else value
@@ -138,6 +152,7 @@ def listen_presets(value):
 def cli_provider(name):
     """Local-login CLI providers store their model in a per-provider option."""
     import providers
+
     return providers.is_cli(name)
 
 
@@ -150,10 +165,12 @@ class GlassBridge:
         self.image_data = {}
         self.window_state = dict(topmost=False, background=app.advanced['background_mode'].get())
         try:
-            self.microphones = [app.mic.audio.get_device_info_by_index(i)
-                                for i in range(app.mic.audio.get_device_count())]
-            self.microphones = [d for d in self.microphones
-                                if d.get('maxInputChannels', 0) > 0 and not d.get('isLoopbackDevice')]
+            self.microphones = [
+                app.mic.audio.get_device_info_by_index(i) for i in range(app.mic.audio.get_device_count())
+            ]
+            self.microphones = [
+                d for d in self.microphones if d.get('maxInputChannels', 0) > 0 and not d.get('isLoopbackDevice')
+            ]
         except Exception:
             self.microphones = []
         bridge = self
@@ -168,9 +185,11 @@ class GlassBridge:
                 self.send_header('Content-Length', str(len(body)))
                 self.send_header('Cache-Control', 'no-store')
                 self.send_header('X-Content-Type-Options', 'nosniff')
-                self.send_header('Content-Security-Policy',
-                                 "default-src 'self'; script-src 'self'; style-src 'self'; "
-                                 "img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'")
+                self.send_header(
+                    'Content-Security-Policy',
+                    "default-src 'self'; script-src 'self'; style-src 'self'; "
+                    "img-src 'self' data: blob:; connect-src 'self'; frame-ancestors 'none'",
+                )
                 self.end_headers()
                 try:
                     self.wfile.write(body)
@@ -179,16 +198,18 @@ class GlassBridge:
 
             def authorized(self):
                 host = f'127.0.0.1:{bridge.server.server_port}'
-                return (self.headers.get('Host') == host
-                        and self.headers.get('Origin', 'http://' + host) == 'http://' + host
-                        and secrets.compare_digest(self.headers.get('X-Listener-Token', ''), bridge.token))
+                return (
+                    self.headers.get('Host') == host
+                    and self.headers.get('Origin', 'http://' + host) == 'http://' + host
+                    and secrets.compare_digest(self.headers.get('X-Listener-Token', ''), bridge.token)
+                )
 
             def do_GET(self):
                 if self.path.startswith('/image/'):
                     if not self.authorized():
                         self.reply(403, b'{}')
                         return
-                    data = bridge.image_data.get(self.path[len('/image/'):])
+                    data = bridge.image_data.get(self.path[len('/image/') :])
                     if not data:
                         self.reply(404, b'{}')
                         return
@@ -203,18 +224,30 @@ class GlassBridge:
                     else:
                         self.reply(200, bridge.read_state(self.path))
                     return
-                files = {'/': 'index.html', '/app.js': 'app.js', '/context_editor.js': 'context_editor.js', '/meeting.js': 'meeting.js', '/markdown.js': 'markdown.js', '/popups.js': 'popups.js', '/style.css': 'style.css'}
+                files = {
+                    '/': 'index.html',
+                    '/app.js': 'app.js',
+                    '/context_editor.js': 'context_editor.js',
+                    '/meeting.js': 'meeting.js',
+                    '/markdown.js': 'markdown.js',
+                    '/popups.js': 'popups.js',
+                    '/style.css': 'style.css',
+                }
                 files['/workbench.js'] = 'workbench.js'
                 files['/settings_tools.js'] = 'settings_tools.js'
-                files.update({'/icons/' + p.name: 'icons/' + p.name
-                              for p in (ASSETS / 'icons').glob('*.svg')})
+                files.update({'/icons/' + p.name: 'icons/' + p.name for p in (ASSETS / 'icons').glob('*.svg')})
                 name = files.get(self.path)
                 if not name:
                     self.reply(404, b'{}')
                     return
-                self.reply(200, (ASSETS / name).read_bytes(),
-                           {'html': 'text/html', 'js': 'text/javascript', 'css': 'text/css',
-                            'svg': 'image/svg+xml'}[name.rsplit('.', 1)[1]] + '; charset=utf-8')
+                self.reply(
+                    200,
+                    (ASSETS / name).read_bytes(),
+                    {'html': 'text/html', 'js': 'text/javascript', 'css': 'text/css', 'svg': 'image/svg+xml'}[
+                        name.rsplit('.', 1)[1]
+                    ]
+                    + '; charset=utf-8',
+                )
 
             def do_POST(self):
                 if self.path != '/command' or not self.authorized():
@@ -248,71 +281,112 @@ class GlassBridge:
         from streaming_asr import ASR_MODELS
         from usage_ui import usage_lines
         from reasoning_support import choices
+
         with a.token_ledger.lock:
             rows = list(a.token_ledger.rows)
         return dict(
             meeting=a.meeting_state() if hasattr(a, 'scenes') else {},
             speaker_note=getattr(getattr(a, 'live', None), 'speaker_note', ''),
-            language=a.locale.language, providers=providers.NAMES,
-            provider=provider, model=model, models=a.cli_models() if cli else list(a.model_choices),
+            language=a.locale.language,
+            providers=providers.NAMES,
+            provider=provider,
+            model=model,
+            models=a.cli_models() if cli else list(a.model_choices),
             caption_translation=a.caption_models.state(),
-            model_status=a.locale.t(a.cli_model_note.get() if cli else a.model_catalog_note() + ' ' + a.key_status.get()),
-            efforts=choices(provider, model, a.codex_capabilities), effort=a.reasoning_selection.get(), cli=cli,
-            has_key=bool(a.key.get()), options={k: v.get() for k, v in a.advanced.items()},
-            engines=list(ASR_MODELS), caption=a.caption_language.get(), answer=a.answer_language.get(),
-            history=a.use_history.get(), profile=a.profile, documents=a.documents, summary=a.context_summary,
-            context_version=a.context_version, history_count=len(a.history),
+            model_status=a.locale.t(
+                a.cli_model_note.get() if cli else a.model_catalog_note() + ' ' + a.key_status.get()
+            ),
+            efforts=choices(provider, model, a.codex_capabilities),
+            effort=a.reasoning_selection.get(),
+            cli=cli,
+            has_key=bool(a.key.get()),
+            options={k: v.get() for k, v in a.advanced.items()},
+            engines=list(ASR_MODELS),
+            caption=a.caption_language.get(),
+            answer=a.answer_language.get(),
+            history=a.use_history.get(),
+            profile=a.profile,
+            documents=a.documents,
+            summary=a.context_summary,
+            context_version=a.context_version,
+            history_count=len(a.history),
             context_edit=getattr(self, 'context_edit', None),
-            prompt_templates=templates_with_writing_rules(a.prompt_templates), prompt_templates_version=a.prompt_templates_version,
-            prompt_templates_error=a.prompt_templates_error, prompt_result=getattr(self, 'prompt_result', None),
+            prompt_templates=templates_with_writing_rules(a.prompt_templates),
+            prompt_templates_version=a.prompt_templates_version,
+            prompt_templates_error=a.prompt_templates_error,
+            prompt_result=getattr(self, 'prompt_result', None),
             prompt_presets=builtin_prompts(),
-            hotkeys=dict(a.hotkeys), hotkey_defaults=dict(HOTKEY_DEFAULTS),
+            hotkeys=dict(a.hotkeys),
+            hotkey_defaults=dict(HOTKEY_DEFAULTS),
             hotkey_status=a.locale.t(a.hotkey_registration_note.get()),
             hotkey_result=getattr(self, 'hotkey_result', None),
             navigation_request=getattr(self, 'navigation_request', None),
-            instructions=a.instructions.get(), answer_mode=a.answer_mode.get(),
-            devices=[d['name'] for d in a.devices], device=a.device_index,
+            instructions=a.instructions.get(),
+            answer_mode=a.answer_mode.get(),
+            devices=[d['name'] for d in a.devices],
+            device=a.device_index,
             microphones=[dict(value=str(d['index']), text=d['name']) for d in self.microphones],
             microphone=str(a.mic_index) if a.mic_index is not None else '',
-            images=[dict(id=i.get('id', str(n)), title=i.get('title', 'Screenshot')) for n, i in enumerate(a.context_images)],
-            listening=bool(a.capture.active() or a.mic.active()), preparing=getattr(a, 'preparing_listen', False),
-            status=a.locale.t(a.status.get()), transcript=a.transcript_view,
-            output=a.output_text, usage=a.locale.t(usage_lines(rows, a.session_id)),
-            diagnostics=dict(speed=a.inline_speed_state() if hasattr(a, 'inline_speed_state') else None,
-                             api=dict(busy=getattr(a, 'check_busy', False), report=getattr(a, 'inline_api_report', '')),
-                             quota=dict(codex=getattr(a, 'codex_quota_text', ''), deepseek=getattr(a, 'deepseek_balance_text', ''),
-                                        kimi=getattr(a, 'kimi_balance_text', ''), busy=getattr(a, 'quota_busy', False), balances=list(getattr(a, 'balance_busy', [])),
-                                        models=a.token_ledger.summary(),
-                                        legacy=a.usage_ledger.summary() if hasattr(a, 'usage_ledger') else '')),
+            images=[
+                dict(id=i.get('id', str(n)), title=i.get('title', 'Screenshot')) for n, i in enumerate(a.context_images)
+            ],
+            listening=bool(a.capture.active() or a.mic.active()),
+            preparing=getattr(a, 'preparing_listen', False),
+            status=a.locale.t(a.status.get()),
+            transcript=a.transcript_view,
+            output=a.output_text,
+            usage=a.locale.t(usage_lines(rows, a.session_id)),
+            diagnostics=dict(
+                speed=a.inline_speed_state() if hasattr(a, 'inline_speed_state') else None,
+                api=dict(busy=getattr(a, 'check_busy', False), report=getattr(a, 'inline_api_report', '')),
+                quota=dict(
+                    codex=getattr(a, 'codex_quota_text', ''),
+                    deepseek=getattr(a, 'deepseek_balance_text', ''),
+                    kimi=getattr(a, 'kimi_balance_text', ''),
+                    busy=getattr(a, 'quota_busy', False),
+                    balances=list(getattr(a, 'balance_busy', [])),
+                    models=a.token_ledger.summary(),
+                    legacy=a.usage_ledger.summary() if hasattr(a, 'usage_ledger') else '',
+                ),
+            ),
             jobs=presentation_jobs(a),
-            native=self.window_state, closing=getattr(a, 'closing', False))
+            native=self.window_state,
+            closing=getattr(a, 'closing', False),
+        )
 
     def settings(self, data):
         a = self.app
         if 'caption_provider' in data:
             from caption_models import CAPTION_PROVIDERS
+
             if data['caption_provider'] not in ('', *CAPTION_PROVIDERS):
                 raise ValueError('Unknown caption provider')
         if 'caption_model' in data:
             value = data['caption_model']
             if not isinstance(value, str) or len(value) > 256 or any(ord(c) < 32 for c in value):
                 raise ValueError('Invalid caption model ID')
-        caption_changed = any(key in data and data[key] != a.advanced[key].get()
-                              for key in ('caption_provider', 'caption_model'))
+        caption_changed = any(
+            key in data and data[key] != a.advanced[key].get() for key in ('caption_provider', 'caption_model')
+        )
         for key in ('caption_provider', 'caption_model'):
             if key in data:
                 a.advanced[key].set(data[key])
         from settings_state import PRESENTATION_DEFAULTS, presentation_value
+
         presentation = {key: presentation_value(key, data[key]) for key in PRESENTATION_DEFAULTS if key in data}
         from meeting_assistance import OPTIONS
+
         for key in OPTIONS.keys() & data.keys():
             if data[key] not in OPTIONS[key]:
                 raise ValueError('Invalid meeting setting: ' + key)
             if key in ('speaker_labels', 'echo_suppression') and (a.capture.active() or a.mic.active()):
                 if data[key] != a.advanced[key].get():
-                    raise ValueError('Pause transcription before changing audio processing. / 请先暂停转录再修改音频处理。')
-        audio_changed = any(key in data and data[key] != a.advanced[key].get()
-                            for key in ('speaker_labels', 'echo_suppression'))
+                    raise ValueError(
+                        'Pause transcription before changing audio processing. / 请先暂停转录再修改音频处理。'
+                    )
+        audio_changed = any(
+            key in data and data[key] != a.advanced[key].get() for key in ('speaker_labels', 'echo_suppression')
+        )
         for key in OPTIONS.keys() & data.keys():
             a.advanced[key].set(data[key])
         if OPTIONS.keys() & data.keys():
@@ -321,6 +395,7 @@ class GlassBridge:
         if audio_changed:
             a.configure_meeting_audio()
         from settings_state import LAYOUT_KEYS
+
         # Check every look value first, so a preset applies whole or not at all.
         look = {key: layout_value(key, data[key]) for key in LAYOUT_KEYS if key in data}
         if 'listen_presets' in data:
@@ -343,6 +418,7 @@ class GlassBridge:
             a.mic_index = int(value) if value else None
         if 'provider' in data:
             import providers
+
             if data['provider'] not in providers.NAMES:
                 raise ValueError('Unknown provider')
             if a.provider.get() != data['provider']:
@@ -355,8 +431,19 @@ class GlassBridge:
                 a.model.set(data['model'])
         if data.get('key'):
             a.key.set(data['key'])
-        allowed = {'source', 'asr_engine', 'asr_pause', 'question_mode', 'thinking_policy', 'warm_context', 'speculate', 'lm_base',
-                   'incremental_context', 'deadline', 'max_output'}
+        allowed = {
+            'source',
+            'asr_engine',
+            'asr_pause',
+            'question_mode',
+            'thinking_policy',
+            'warm_context',
+            'speculate',
+            'lm_base',
+            'incremental_context',
+            'deadline',
+            'max_output',
+        }
         for key in allowed & data.keys():
             if key in ('source', 'asr_engine') and (a.capture.active() or a.mic.active()):
                 if data[key] != a.advanced[key].get():
@@ -373,6 +460,7 @@ class GlassBridge:
             a.device_index = index
         if 'effort' in data:
             from reasoning_support import choices
+
             provider, model = a.reasoning_identity()
             if data['effort'] not in choices(provider, model, a.codex_capabilities):
                 raise ValueError('Unsupported reasoning effort')
@@ -424,20 +512,23 @@ class GlassBridge:
         elif action == 'settings':
             self.settings(data.get('values', {}))
         elif action == 'hotkeys':
-            self.navigation_request=dict(id=secrets.token_hex(8), section='shortcuts')
+            self.navigation_request = dict(id=secrets.token_hex(8), section='shortcuts')
         elif action == 'save_hotkeys':
             try:
                 a.apply_hotkeys(data.get('values'))
-                self.hotkey_result=dict(id=data.get('id'), ok=True)
+                self.hotkey_result = dict(id=data.get('id'), ok=True)
             except (ValueError, TypeError, AttributeError) as exc:
-                self.hotkey_result=dict(id=data.get('id'), ok=False, error=a.locale.t(str(exc)))
+                self.hotkey_result = dict(id=data.get('id'), ok=False, error=a.locale.t(str(exc)))
         elif action == 'apply_context':
             # Return a correlated outcome in the state feed; HTTP 202 only queues work.
             try:
                 if data.get('version') != a.context_version:
                     raise ValueError('Context changed. Reload current context before applying your draft.')
                 values = data.get('values', {})
-                if not isinstance(values, dict) or any(k not in ('profile', 'documents', 'instructions') or not isinstance(v, str) for k, v in values.items()):
+                if not isinstance(values, dict) or any(
+                    k not in ('profile', 'documents', 'instructions') or not isinstance(v, str)
+                    for k, v in values.items()
+                ):
                     raise ValueError('Invalid context fields')
                 self.settings(values)
                 self.context_edit = dict(id=data.get('id'), ok=True)
@@ -450,14 +541,21 @@ class GlassBridge:
             from account_support import save_settings
             from audio_answer import ROOT
             from prompt_templates import updated_templates
+
             try:
                 if a.prompt_templates_error:
                     raise ValueError(a.prompt_templates_error)
                 if data.get('version') != a.prompt_templates_version:
                     raise ValueError('Templates changed. Try again with the current library.')
-                templates = updated_templates(a.prompt_templates, data.get('name'), data.get('text'),
-                    delete=action == 'delete_prompt_template', overwrite=data.get('overwrite') is True)
+                templates = updated_templates(
+                    a.prompt_templates,
+                    data.get('name'),
+                    data.get('text'),
+                    delete=action == 'delete_prompt_template',
+                    overwrite=data.get('overwrite') is True,
+                )
                 from app_paths import data_path
+
                 save_settings(data_path(ROOT, 'prompt_templates.dpapi'), templates)
                 a.prompt_templates = templates
                 a.prompt_templates_version += 1
@@ -504,6 +602,7 @@ class GlassBridge:
         elif action == 'import':
             from tkinter import filedialog
             from session_support import read_document
+
             for path in filedialog.askopenfilenames(parent=a.root, title='Add reference files'):
                 a.documents += '\n\n--- ' + Path(path).name + ' ---\n' + read_document(path)
                 a.context_changed()
@@ -511,8 +610,17 @@ class GlassBridge:
             from account_support import save_settings
             from audio_answer import ROOT
             from app_paths import data_path
-            save_settings(data_path(ROOT, 'context.dpapi'), dict(profile=a.profile, documents=a.documents,
-                          summary=a.context_summary, images=a.context_images, instructions=a.instructions.get()))
+
+            save_settings(
+                data_path(ROOT, 'context.dpapi'),
+                dict(
+                    profile=a.profile,
+                    documents=a.documents,
+                    summary=a.context_summary,
+                    images=a.context_images,
+                    instructions=a.instructions.get(),
+                ),
+            )
             a.status.set('上下文已加密保存到本机。')
         elif action == 'remove_image':
             remaining = [i for n, i in enumerate(a.context_images) if i.get('id', str(n)) != data.get('id')]
@@ -528,12 +636,18 @@ class GlassBridge:
         elif action in ('usage', 'refresh_quota'):
             a.refresh_codex_quota()
         elif action == 'refresh_balance':
-            if data.get('provider') not in ('DeepSeek', 'Kimi'): raise ValueError('Invalid balance provider')
+            if data.get('provider') not in ('DeepSeek', 'Kimi'):
+                raise ValueError('Invalid balance provider')
             a.refresh_deepseek_balance(data['provider'])
         elif action == 'open_usage_page':
             import webbrowser
-            pages = {'Gemini': 'https://aistudio.google.com/usage', 'Qwen': 'https://help.aliyun.com/zh/model-studio/model-usage-statistics'}
-            if data.get('provider') not in pages: raise ValueError('Invalid usage provider')
+
+            pages = {
+                'Gemini': 'https://aistudio.google.com/usage',
+                'Qwen': 'https://help.aliyun.com/zh/model-studio/model-usage-statistics',
+            }
+            if data.get('provider') not in pages:
+                raise ValueError('Invalid usage provider')
             webbrowser.open(pages[data['provider']])
         elif action in ('sessions', 'screenshots'):
             getattr(a, dict(sessions='session_browser', screenshots='screenshot_manager')[action])()

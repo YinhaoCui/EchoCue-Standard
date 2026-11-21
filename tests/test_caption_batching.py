@@ -1,4 +1,5 @@
 """Short ASR endpoints must be translated with their surrounding speech."""
+
 import threading
 import unittest
 from types import SimpleNamespace
@@ -13,10 +14,17 @@ import test_sessions
 class CaptionBatchingTests(unittest.TestCase):
     def setUp(self):
         self.app = SimpleNamespace(
-            content_language=lambda _: 'bilingual', locale=SimpleNamespace(language='zh', t=lambda text: text),
-            closing=False, follow_live=True, live_dirty=False, live_drafts={},
-            root=Mock(), capture=SimpleNamespace(active=lambda: True), mic=SimpleNamespace(active=lambda: False),
-            live=SimpleNamespace(lock=threading.RLock(), records=[], sources={}, submitted=0, completed=0))
+            content_language=lambda _: 'bilingual',
+            locale=SimpleNamespace(language='zh', t=lambda text: text),
+            closing=False,
+            follow_live=True,
+            live_dirty=False,
+            live_drafts={},
+            root=Mock(),
+            capture=SimpleNamespace(active=lambda: True),
+            mic=SimpleNamespace(active=lambda: False),
+            live=SimpleNamespace(lock=threading.RLock(), records=[], sources={}, submitted=0, completed=0),
+        )
         self.presenter = CaptionPresenter(self.app)
         dispatch = patch.object(self.presenter, 'start_next')
         self.start = dispatch.start()
@@ -24,8 +32,9 @@ class CaptionBatchingTests(unittest.TestCase):
         self.addCleanup(self.presenter.close)
 
     def add(self, text, source='电脑', speaker=None):
-        record = dict(source=source, body=text, text='[16:21:58 ' + source + ']\n' + text,
-                      sequence=len(self.app.live.records) + 1)
+        record = dict(
+            source=source, body=text, text='[16:21:58 ' + source + ']\n' + text, sequence=len(self.app.live.records) + 1
+        )
         if speaker:
             record['speaker'] = speaker
         self.app.live.records.append(record)
@@ -77,8 +86,9 @@ class CaptionBatchingTests(unittest.TestCase):
         self.assertEqual(list(self.presenter.queue), [('bilingual', 'This is a complete sentence.')])
         self.add('QUESTION?')
         self.render()
-        self.assertEqual(list(self.presenter.queue), [('bilingual', 'This is a complete sentence.'),
-                                                      ('bilingual', 'NEXT QUESTION?')])
+        self.assertEqual(
+            list(self.presenter.queue), [('bilingual', 'This is a complete sentence.'), ('bilingual', 'NEXT QUESTION?')]
+        )
 
     def test_sources_and_speakers_are_never_mixed(self):
         self.add('Computer sentence.', speaker='Speaker 1')
@@ -155,8 +165,9 @@ class CaptionBatchingTests(unittest.TestCase):
             self.presenter.transcript(self.app.live.records[0]['text'])
         self.assertEqual(list(self.presenter.queue), [('bilingual', 'THE OLD WOMAN')])
         self.render()
-        self.assertEqual(list(self.presenter.queue), [('bilingual', 'THE OLD WOMAN'),
-                                                      ('bilingual', 'REPLIED WITH CLEAR EVIDENCE.')])
+        self.assertEqual(
+            list(self.presenter.queue), [('bilingual', 'THE OLD WOMAN'), ('bilingual', 'REPLIED WITH CLEAR EVIDENCE.')]
+        )
 
 
 class CaptionBatchingIntegrationTests(unittest.TestCase):
@@ -169,8 +180,9 @@ class CaptionBatchingIntegrationTests(unittest.TestCase):
         fragments = ['THE OLD WOMAN', 'REPLIED', 'WITH CLEAR EVIDENCE.']
         translation = self.patches[0].target.translate
         for sequence, body in enumerate(fragments, 1):
-            record = dict(source='电脑', sequence=sequence, generation=sequence,
-                          body=body, text='[16:21:58 电脑]\n' + body)
+            record = dict(
+                source='电脑', sequence=sequence, generation=sequence, body=body, text='[16:21:58 电脑]\n' + body
+            )
             self.ui.live.records.append(record)
             self.ui.handle_event('live_segment', record)
             self.ui.render_live_transcript()

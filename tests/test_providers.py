@@ -9,7 +9,7 @@ import providers
 class ProviderTableTests(unittest.TestCase):
     def test_every_provider_is_listed_once_cli_first(self):
         self.assertEqual(len(providers.NAMES), len(set(providers.NAMES)))
-        self.assertEqual(providers.NAMES[:len(providers.CLI_PROVIDERS)], providers.CLI_PROVIDERS)
+        self.assertEqual(providers.NAMES[: len(providers.CLI_PROVIDERS)], providers.CLI_PROVIDERS)
         self.assertEqual(list(a.API_PROVIDERS), providers.API_NAMES)
         self.assertEqual(a.SPECIAL_PROVIDERS, providers.CLI_PROVIDERS)
 
@@ -23,6 +23,7 @@ class ProviderTableTests(unittest.TestCase):
 
     def test_interface_strings_are_translated(self):
         from locale_catalog import EN
+
         for name in providers.NAMES:
             if any('\u4e00' <= ch <= '\u9fff' for ch in name):
                 self.assertIn(name, EN)
@@ -43,8 +44,11 @@ class ProviderTableTests(unittest.TestCase):
         self.assertIn('Kimi', providers.note('Kimi'))
 
     def test_cli_answer_routes_to_each_transport(self):
-        for name, helper in [(providers.CLAUDE, 'claude_answer'), (providers.KIRO, 'kiro_answer'),
-                             (providers.ANTIGRAVITY, 'antigravity_answer')]:
+        for name, helper in [
+            (providers.CLAUDE, 'claude_answer'),
+            (providers.KIRO, 'kiro_answer'),
+            (providers.ANTIGRAVITY, 'antigravity_answer'),
+        ]:
             with self.subTest(name=name), patch.object(a, helper, return_value='OK') as answer:
                 providers.cli_answer(name, 'prompt', 'model', threading.Event(), lambda _: None, effort='low')
                 self.assertEqual(answer.call_args.args[1:3], ('prompt', 'model'))
@@ -54,8 +58,16 @@ class ProviderTableTests(unittest.TestCase):
     def test_codex_result_is_emitted_when_nothing_streamed(self):
         pieces = []
         with patch.object(a, 'codex_answer', return_value='Full answer') as answer:
-            providers.cli_answer(providers.CODEX, 'prompt', 'm', threading.Event(), pieces.append,
-                                 session_key='lane', transcript='t', instructions='i')
+            providers.cli_answer(
+                providers.CODEX,
+                'prompt',
+                'm',
+                threading.Event(),
+                pieces.append,
+                session_key='lane',
+                transcript='t',
+                instructions='i',
+            )
         self.assertEqual(pieces, ['Full answer'])
         self.assertEqual(answer.call_args.args[:2], ('t', 'i'))
         self.assertEqual(answer.call_args.kwargs['prompt_override'], 'prompt')

@@ -1,10 +1,12 @@
 """Long-question submission boundaries and lossless context regression tests."""
+
 import threading
 import unittest
 from unittest.mock import Mock, patch
 import test_sessions
 from answer_jobs import AnswerJobs, build_prompt
 from generation_context import ContextPrompt
+
 
 class LongQuestionTests(unittest.TestCase):
     setUp = test_sessions.UITests.setUp
@@ -29,7 +31,8 @@ class LongQuestionTests(unittest.TestCase):
         self.ui.jobs.clear()
 
     def test_full_long_input_survives_and_settings_snapshot_is_independent(self):
-        self.ui.provider.set('Codex'); self.ui.update_provider()
+        self.ui.provider.set('Codex')
+        self.ui.update_provider()
         self.ui.advanced['question_mode'].set('长问题')
         inputs, error = self.ui.request_inputs()
         self.assertIsNone(error)
@@ -42,7 +45,8 @@ class LongQuestionTests(unittest.TestCase):
         self.assertNotIn('Do not answer only the last transcript segment', self.ui.request_inputs()[0]['instructions'])
 
     def test_caption_and_analysis_do_not_inherit_answer_instructions(self):
-        self.ui.provider.set('Codex'); self.ui.update_provider()
+        self.ui.provider.set('Codex')
+        self.ui.update_provider()
         self.ui.advanced['question_mode'].set('长问题')
         for flags in ({'caption': True}, {'analysis': True}):
             self.assertNotIn('complete long question', self.ui.request_inputs(**flags)[0]['instructions'])

@@ -9,6 +9,7 @@ Requests fall back to ``urllib.request.urlopen`` when a proxy applies (so
 system/env proxy settings keep working) or when urlopen has been replaced
 (tests patch it).
 """
+
 from contextlib import contextmanager
 import http.client
 import io
@@ -19,6 +20,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+
 def _urlopen_replaced():
     current = urllib.request.urlopen
     return current is not _URLOPEN or getattr(current, '__module__', None) != 'urllib.request'
@@ -26,14 +28,19 @@ def _urlopen_replaced():
 
 _URLOPEN = urllib.request.urlopen
 _lock = threading.Lock()
-_idle = {}          # (scheme, host, port) -> [(connection, idle_since)]
+_idle = {}  # (scheme, host, port) -> [(connection, idle_since)]
 _warming = set()
 _context = ssl.create_default_context()
 MAX_IDLE = 4
 # Errors raised when a reused keep-alive socket was already closed by the server
 # before it received our request; retrying once on a fresh connection is safe.
-STALE_ERRORS = (http.client.RemoteDisconnected, http.client.BadStatusLine,
-                ConnectionResetError, ConnectionAbortedError, BrokenPipeError)
+STALE_ERRORS = (
+    http.client.RemoteDisconnected,
+    http.client.BadStatusLine,
+    ConnectionResetError,
+    ConnectionAbortedError,
+    BrokenPipeError,
+)
 
 
 def _target(url):
@@ -59,7 +66,7 @@ def _take(key):
     with _lock:
         pool = _idle.get(key) or []
         while pool:
-            conn, _ = pool.pop()          # newest first
+            conn, _ = pool.pop()  # newest first
             if conn.sock is not None:
                 return conn
             conn.close()
@@ -116,8 +123,9 @@ def urlopen(request, timeout):
     try:
         if response.status >= 300:
             body = response.read()
-            raise urllib.error.HTTPError(request.full_url, response.status, response.reason,
-                                         response.headers, io.BytesIO(body))
+            raise urllib.error.HTTPError(
+                request.full_url, response.status, response.reason, response.headers, io.BytesIO(body)
+            )
         yield response
         # Only fully consumed responses leave the socket in a reusable state.
         reusable = response.isclosed() and not response.will_close
@@ -139,8 +147,8 @@ def warm(url, max_age=30, count=1):
     key = target[0]
     now = time.monotonic()
     with _lock:
-        ready=sum(c.sock is not None and now-s<max_age for c,s in _idle.get(key,[]))
-        if key in _warming or ready>=count:
+        ready = sum(c.sock is not None and now - s < max_age for c, s in _idle.get(key, []))
+        if key in _warming or ready >= count:
             return False
         _warming.add(key)
 
@@ -155,15 +163,20 @@ def warm(url, max_age=30, count=1):
                     pool.remove((old, stamp))
                     old.close()
             _give(key, conn)
-            for _ in range(max(0,min(count,MAX_IDLE)-ready-1)):
-                extra=_new(key,10)
-                try:extra.connect();_give(key,extra)
-                except Exception:extra.close();break
+            for _ in range(max(0, min(count, MAX_IDLE) - ready - 1)):
+                extra = _new(key, 10)
+                try:
+                    extra.connect()
+                    _give(key, extra)
+                except Exception:
+                    extra.close()
+                    break
         except Exception:
             pass
         finally:
             with _lock:
                 _warming.discard(key)
+
     threading.Thread(target=run, daemon=True).start()
     return True
 

@@ -1,4 +1,5 @@
 """Verify the actual bundled runtime, GUI toolkit, dependencies and model files."""
+
 import hashlib
 import json
 import re
@@ -23,6 +24,7 @@ def main():
     import webrtcvad
     import webview
     import clr
+
     for asset in ('index.html', 'style.css', 'app.js'):
         if not (internal / 'app/web' / asset).is_file():
             raise RuntimeError('Missing desktop interface asset: ' + asset)
@@ -42,6 +44,7 @@ def main():
             if hashlib.file_digest(stream, 'sha256').hexdigest() != entry['sha256']:
                 raise RuntimeError('Model checksum mismatch: ' + name)
     from streaming_asr import ASR_MODELS, load_recognizer
+
     for name in ASR_MODELS:
         recognizer = load_recognizer(internal, name)
         del recognizer

@@ -1,4 +1,5 @@
 """Resident streaming recognizers with independent state for each audio source."""
+
 import audioop
 from pathlib import Path
 import queue
@@ -14,9 +15,12 @@ ASR_MODELS = {
 }
 DEFAULT_ASR = '中英混合 · Paraformer'
 MODEL_FILES = {
-    'zip-en': ['tokens.txt', 'encoder-epoch-99-avg-1-chunk-16-left-64.int8.onnx',
-               'decoder-epoch-99-avg-1-chunk-16-left-64.int8.onnx',
-               'joiner-epoch-99-avg-1-chunk-16-left-64.int8.onnx'],
+    'zip-en': [
+        'tokens.txt',
+        'encoder-epoch-99-avg-1-chunk-16-left-64.int8.onnx',
+        'decoder-epoch-99-avg-1-chunk-16-left-64.int8.onnx',
+        'joiner-epoch-99-avg-1-chunk-16-left-64.int8.onnx',
+    ],
     'zip-zh': ['tokens.txt', 'model.int8.onnx'],
     'paraformer': ['tokens.txt', 'encoder.int8.onnx', 'decoder.int8.onnx'],
 }
@@ -35,6 +39,7 @@ def validate_model(root, selection):
 
 def load_recognizer(root, selection):
     import sherpa_onnx
+
     folder = validate_model(root, selection)
     kind = ASR_MODELS[selection]
     common = dict(tokens=str(folder / 'tokens.txt'), num_threads=4, provider='cpu')
@@ -43,13 +48,15 @@ def load_recognizer(root, selection):
         return sherpa_onnx.OnlineRecognizer.from_zipformer2_ctc(model=str(folder / files[1]), **common)
     if kind == 'zip-en':
         return sherpa_onnx.OnlineRecognizer.from_transducer(
-            encoder=str(folder / files[1]), decoder=str(folder / files[2]), joiner=str(folder / files[3]), **common)
+            encoder=str(folder / files[1]), decoder=str(folder / files[2]), joiner=str(folder / files[3]), **common
+        )
     return sherpa_onnx.OnlineRecognizer.from_paraformer(
-        encoder=str(folder / files[1]), decoder=str(folder / files[2]), **common)
+        encoder=str(folder / files[1]), decoder=str(folder / files[2]), **common
+    )
 
 
 class StreamingLiveTranscriber(LiveTranscriber):
-    def __init__(self, root, emit, factory=None, rate=16000, silence=.65, max_seconds=30, threshold=100):
+    def __init__(self, root, emit, factory=None, rate=16000, silence=0.65, max_seconds=30, threshold=100):
         try:
             import numpy
         except ImportError as exc:
@@ -83,8 +90,9 @@ class StreamingLiveTranscriber(LiveTranscriber):
             self.engine = selection
             self.queue.put(('prepare', selection))
 
-    def preload(self,selection):
-        if not self.cancel.is_set():self.queue.put(('prepare',selection))
+    def preload(self, selection):
+        if not self.cancel.is_set():
+            self.queue.put(('prepare', selection))
 
     def feed(self, source, pcm):
         if self.cancel.is_set() or not pcm:
@@ -98,7 +106,7 @@ class StreamingLiveTranscriber(LiveTranscriber):
                 self.last_voice = time.monotonic()
             if not state['data']:
                 if not voiced:
-                    state['pre'] = (state['pre'] + pcm)[-int(self.rate * .3) * 2:]
+                    state['pre'] = (state['pre'] + pcm)[-int(self.rate * 0.3) * 2 :]
                     return
                 state['generation'] += 1
                 state['stamp'] = time.strftime('%H:%M:%S')
@@ -140,7 +148,7 @@ class StreamingLiveTranscriber(LiveTranscriber):
 
         while not self.cancel.is_set():
             try:
-                item = self.queue.get(timeout=.1)
+                item = self.queue.get(timeout=0.1)
             except queue.Empty:
                 continue
             action = item[0]
@@ -150,6 +158,7 @@ class StreamingLiveTranscriber(LiveTranscriber):
                 if item[1]:
                     try:
                         from meeting_audio import LocalSpeakers
+
                         speakers = LocalSpeakers(self.root, item[2])
                         self.speaker_note = 'Local speaker labels enabled / 本地说话人标注已开启'
                     except Exception as exc:
@@ -194,7 +203,7 @@ class StreamingLiveTranscriber(LiveTranscriber):
             _, _, sequence, stamp, generation = item
             if not state['error']:
                 try:
-                    state['stream'].accept_waveform(self.rate, np.zeros(int(.66 * self.rate), dtype=np.float32))
+                    state['stream'].accept_waveform(self.rate, np.zeros(int(0.66 * self.rate), dtype=np.float32))
                     state['stream'].input_finished()
                     state['text'] = apply_terms(decode(state), state['terms'])
                 except Exception as exc:
@@ -202,8 +211,14 @@ class StreamingLiveTranscriber(LiveTranscriber):
             body = state['text']
             if state['error']:
                 body += ('\n' if body else '') + '[转录失败] ' + state['error']
-            record = dict(sequence=sequence, source=source, generation=generation,
-                          text=f'[{stamp} {source}]\n{body}', body=body, ok=not bool(state['error']))
+            record = dict(
+                sequence=sequence,
+                source=source,
+                generation=generation,
+                text=f'[{stamp} {source}]\n{body}',
+                body=body,
+                ok=not bool(state['error']),
+            )
             if speakers is not None and not state['error'] and body.strip():
                 try:
                     speaker = speakers.identify(source, state['pcm'], self.rate)

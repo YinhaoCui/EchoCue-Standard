@@ -1,4 +1,5 @@
 """Standard edition shortcut, desktop menu and installed data boundaries."""
+
 import unittest
 from hotkey_settings import DEFAULTS, validate
 from tray_menu import menu_entries

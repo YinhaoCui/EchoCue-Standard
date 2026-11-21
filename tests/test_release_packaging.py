@@ -1,4 +1,5 @@
 """Check the portable package layout without bundling a real Python installation."""
+
 import contextlib
 import importlib.util
 import io
@@ -9,7 +10,9 @@ from unittest.mock import patch
 import zipfile
 
 
-spec = importlib.util.spec_from_file_location('package_release', Path(__file__).resolve().parents[1] / 'tools/package_release.py')
+spec = importlib.util.spec_from_file_location(
+    'package_release', Path(__file__).resolve().parents[1] / 'tools/package_release.py'
+)
 packager = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(packager)
 
@@ -51,9 +54,12 @@ class ReleasePackagingTests(unittest.TestCase):
             for name in ('DLLs', 'Lib'):
                 (python / name).mkdir(parents=True)
             (python / 'python.exe').write_bytes(b'test runtime')
-            with patch.object(packager, 'ROOT', root), patch.object(packager.sys, 'base_prefix', str(python)), \
-                    patch.object(packager.sys, 'argv', ['package_release.py', '--output', str(output)]), \
-                    contextlib.redirect_stdout(io.StringIO()):
+            with (
+                patch.object(packager, 'ROOT', root),
+                patch.object(packager.sys, 'base_prefix', str(python)),
+                patch.object(packager.sys, 'argv', ['package_release.py', '--output', str(output)]),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
                 packager.main()
             archive = output / 'EchoCue-1.0.0-windows-x64.zip'
             self.assertTrue(archive.with_suffix('.zip.sha256').is_file())
@@ -73,9 +79,12 @@ class ReleasePackagingTests(unittest.TestCase):
             for asset in ('deeplx.exe', 'LICENSE.txt'):
                 (root / 'runtime/dlx' / asset).unlink()
             clean_output = Path(folder) / 'without-dlx'
-            with patch.object(packager, 'ROOT', root), patch.object(packager.sys, 'base_prefix', str(python)), \
-                    patch.object(packager.sys, 'argv', ['package_release.py', '--output', str(clean_output)]), \
-                    contextlib.redirect_stdout(io.StringIO()):
+            with (
+                patch.object(packager, 'ROOT', root),
+                patch.object(packager.sys, 'base_prefix', str(python)),
+                patch.object(packager.sys, 'argv', ['package_release.py', '--output', str(clean_output)]),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
                 packager.main()
             with zipfile.ZipFile(clean_output / 'EchoCue-1.0.0-windows-x64.zip') as bundle:
                 self.assertIn(prefix + '_internal/app/web_translation.py', bundle.namelist())

@@ -1,4 +1,5 @@
 """First-token latency features: keep-alive pool, Codex spare threads, prompt order, speculative answers."""
+
 import http.server
 import json
 import pathlib
@@ -21,7 +22,10 @@ import test_sessions
 class Handler(http.server.BaseHTTPRequestHandler):
     protocol_version = 'HTTP/1.1'
     ports = []
-    def log_message(self, *args): pass
+
+    def log_message(self, *args):
+        pass
+
     def do_POST(self):
         self.rfile.read(int(self.headers.get('Content-Length', 0)))
         Handler.ports.append(self.client_address[1])
@@ -49,7 +53,8 @@ class PoolTests(unittest.TestCase):
     def tearDown(self):
         self.patch.stop()
         http_pool.close_all()
-        self.server.shutdown(); self.server.server_close()
+        self.server.shutdown()
+        self.server.server_close()
 
     def request(self, path='/stream'):
         return urllib.request.Request(self.base + path, data=b'{}', headers={'Content-Type': 'application/json'})
@@ -71,21 +76,26 @@ class PoolTests(unittest.TestCase):
         self.assertTrue(http_pool.warm(self.base + '/v1'))
         deadline = time.monotonic() + 3
         while not http_pool._idle.get(('http', '127.0.0.1', self.server.server_port)) and time.monotonic() < deadline:
-            time.sleep(.01)
+            time.sleep(0.01)
         self.assertFalse(http_pool.warm(self.base + '/v1'))  # recent idle connection exists
         list(streaming_events(self.request(), a.sse_events, threading.Event(), total_timeout=5))
         self.assertEqual(len(Handler.ports), 1)
 
     def test_proxy_falls_back_to_urllib(self):
-        with patch.object(urllib.request, 'getproxies', return_value={'https': 'http://proxy:8080'}), \
-             patch.object(urllib.request, 'proxy_bypass', return_value=False):
+        with (
+            patch.object(urllib.request, 'getproxies', return_value={'https': 'http://proxy:8080'}),
+            patch.object(urllib.request, 'proxy_bypass', return_value=False),
+        ):
             self.assertIsNone(http_pool._target('https://api.deepseek.com/chat/completions'))
 
 
 class CodexSpareTests(unittest.TestCase):
     def setUp(self):
-        self.service = CodexService('', pathlib.Path(__file__).parent,
-            command=[sys.executable, '-u', str(pathlib.Path(__file__).with_name('fake_codex_server.py'))])
+        self.service = CodexService(
+            '',
+            pathlib.Path(__file__).parent,
+            command=[sys.executable, '-u', str(pathlib.Path(__file__).with_name('fake_codex_server.py'))],
+        )
         self.addCleanup(self.service.close)
 
     def answer(self, text):
@@ -96,8 +106,9 @@ class CodexSpareTests(unittest.TestCase):
         while time.monotonic() < deadline:
             with self.service.lock:
                 spares = [thread for _, thread in self.service.spares.get('gpt-6-astra', [])]
-            if spares == expected: return
-            time.sleep(.01)
+            if spares == expected:
+                return
+            time.sleep(0.01)
         self.fail(f'spares {spares} != {expected}')
 
     def test_prewarm_creates_one_spare_without_automatic_refill(self):
@@ -123,8 +134,16 @@ class CodexSpareTests(unittest.TestCase):
 
 class PromptOrderTests(unittest.TestCase):
     def test_reference_material_before_per_turn_instructions(self):
-        inputs = dict(profile='P', documents='DOC', summary='', history=[], context_records=[], terms='',
-                      images=[], instructions='本轮要求')
+        inputs = dict(
+            profile='P',
+            documents='DOC',
+            summary='',
+            history=[],
+            context_records=[],
+            terms='',
+            images=[],
+            instructions='本轮要求',
+        )
         prompt = answer_jobs.build_prompt(inputs, '转录')
         self.assertLess(prompt.index('DOC'), prompt.index('本轮要求'))
         self.assertTrue(prompt.endswith('本轮要求'))
@@ -141,6 +160,7 @@ class SpeculationTests(unittest.TestCase):
 
     def segment(self):
         from test_streaming import FakeRecognizer
+
         self.ui.live.factory = lambda selection: FakeRecognizer()
         self.ui.live.configure('中文 · Zipformer')
         self.ui.live.feed('电脑', b'\x00\x10' * a.RATE)
@@ -149,12 +169,17 @@ class SpeculationTests(unittest.TestCase):
         return self.ui.live.records[-1]
 
     def prepare(self):
-        self.ui.provider.set('LM Studio'); self.ui.update_provider(); self.ui.model.set('test-model')
+        self.ui.provider.set('LM Studio')
+        self.ui.update_provider()
+        self.ui.model.set('test-model')
         self.ui.advanced['question_mode'].set('快速问答')
         self.ui.advanced['speculate'].set('每段定稿')
         self.calls = []
+
         def answer(provider, transcript, key, model, instructions, cancel, emit, **kw):
-            self.calls.append(instructions); emit('预生成答案')
+            self.calls.append(instructions)
+            emit('预生成答案')
+
         return patch.object(a, 'compatible_answer', side_effect=answer)
 
     def test_hotkey_adopts_matching_speculation(self):
@@ -163,7 +188,9 @@ class SpeculationTests(unittest.TestCase):
             answer_jobs.AnswerJobs.maybe_speculate(self.ui, record)
             spec = self.ui.speculation
             spec.worker.join(2)
-            self.ui.ask(); self.ui.worker.join(2); self.ui.poll()
+            self.ui.ask()
+            self.ui.worker.join(2)
+            self.ui.poll()
         self.assertEqual(len(self.calls), 1)
         job = self.ui.jobs[self.ui.ask_revision]
         self.assertEqual(job['answer'], '预生成答案')
@@ -179,7 +206,9 @@ class SpeculationTests(unittest.TestCase):
             spec = self.ui.speculation
             spec.worker.join(2)
             self.ui.instructions.set('换个要求')
-            self.ui.ask(); self.ui.worker.join(2); self.ui.poll()
+            self.ui.ask()
+            self.ui.worker.join(2)
+            self.ui.poll()
         self.assertTrue(spec.cancel.is_set())
         self.assertEqual(len(self.calls), 2)
         self.assertIn('换个要求', self.calls[-1])
@@ -190,7 +219,8 @@ class SpeculationTests(unittest.TestCase):
         with self.prepare():
             record = self.segment()
             answer_jobs.AnswerJobs.maybe_speculate(self.ui, record)
-            self.ui.speculation.worker.join(2); self.ui.poll()
+            self.ui.speculation.worker.join(2)
+            self.ui.poll()
         self.assertEqual(self.ui.history, [])
         self.assertNotIn('预生成答案', self.ui.output_text)
 

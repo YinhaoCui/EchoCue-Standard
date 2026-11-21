@@ -1,4 +1,5 @@
 """Offline model presets and descriptions; successful discovery replaces presets."""
+
 CATEGORIES = ('全部', '快速 / 省钱', '推理', 'Coding', '未分类')
 # Categories describe suitable tasks, not exclusive capabilities or speed guarantees.
 CATALOG = {
@@ -47,40 +48,69 @@ CATALOG = {
     },
 }
 
+
 def describe(provider, model):
-    if provider=='Meta Muse' and model.endswith('-contributor'):
+    if provider == 'Meta Muse' and model.endswith('-contributor'):
         return '[推理,Coding] Contributor 模式：提交内容可能用于训练 Meta 模型；标准模式请选择不带 contributor 的版本。'
     tags, note = CATALOG.get(provider, {}).get(model, ('未分类', '接口发现或自定义模型；请核对能力、输入类型和费用'))
     return f'[{tags}] {note}。'
 
+
 def chat_candidate(model):
-    return not any(word in model.lower() for word in (
-        'embedding', 'embed-', 'tts', 'transcribe', 'imagen', 'veo', 'image-generation',
-        'native-audio', 'live', 'realtime', 'rerank', '-image', 'nano-banana', 'omni-', 'lyria', 'computer-use'))
+    return not any(
+        word in model.lower()
+        for word in (
+            'embedding',
+            'embed-',
+            'tts',
+            'transcribe',
+            'imagen',
+            'veo',
+            'image-generation',
+            'native-audio',
+            'live',
+            'realtime',
+            'rerank',
+            '-image',
+            'nano-banana',
+            'omni-',
+            'lyria',
+            'computer-use',
+        )
+    )
+
 
 def select_models(provider, discovered=None, category='全部'):
     # None means not fetched. An empty successful response must stay empty.
     presets = CATALOG.get(provider, {})
     if discovered is None:
         discovered = presets
-    if provider=='Meta Muse':
-        discovered=[m for m in discovered if isinstance(m,str) and m.startswith(('muse-spark-','muse-wonder-'))]
+    if provider == 'Meta Muse':
+        discovered = [m for m in discovered if isinstance(m, str) and m.startswith(('muse-spark-', 'muse-wonder-'))]
     available = {m for m in discovered if isinstance(m, str) and m and chat_candidate(m)}
     models = [m for m in presets if m in available] + sorted(available - set(presets))
-    return [m for m in models if category == '全部' or category in
-            CATALOG.get(provider, {}).get(m, ('未分类', ''))[0].split(',')]
+    return [
+        m
+        for m in models
+        if category == '全部' or category in CATALOG.get(provider, {}).get(m, ('未分类', ''))[0].split(',')
+    ]
+
 
 def thinking_options(provider, model, reasoning=False):
-    if provider=='Meta Muse' and model in CATALOG[provider]:
-        return {'reasoning_effort':'high' if reasoning else 'minimal'}
+    if provider == 'Meta Muse' and model in CATALOG[provider]:
+        return {'reasoning_effort': 'high' if reasoning else 'minimal'}
     if provider == 'Kimi':
         if model == 'kimi-k3':
             return {'reasoning_effort': 'high' if reasoning else 'low'}
-        if model in ('kimi-k2.5','kimi-k2.6'):
+        if model in ('kimi-k2.5', 'kimi-k2.6'):
             return {'thinking': {'type': 'enabled' if reasoning else 'disabled'}}
         return {}  # Code models always think; unknown models retain server defaults.
     if provider == 'DeepSeek' and model in CATALOG['DeepSeek']:
         return {'thinking': {'type': 'enabled' if reasoning else 'disabled'}}
-    if provider == '通义千问（北京）' and model in CATALOG[provider] and model.startswith(('qwen3.8-', 'qwen3.7-', 'qwen3.6-', 'qwen3.5-')):
+    if (
+        provider == '通义千问（北京）'
+        and model in CATALOG[provider]
+        and model.startswith(('qwen3.8-', 'qwen3.7-', 'qwen3.6-', 'qwen3.5-'))
+    ):
         return {'enable_thinking': reasoning}
     return {}

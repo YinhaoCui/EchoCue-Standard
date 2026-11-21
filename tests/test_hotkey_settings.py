@@ -10,6 +10,24 @@ class HotkeyValidationTests(unittest.TestCase):
             with self.subTest(key=key), self.assertRaises(ValueError):
                 parse(key)
 
+    def test_function_key_alone_and_unused_actions_are_allowed(self):
+        self.assertEqual(parse('f8'), ('F8', 0x4000, 119))
+        for key in ('F', 'F0x', 'F25'):
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                parse(key)
+        values = validate(dict(DEFAULTS, hotkey='F8', topmost='', transcription=' ', capture_screen=''))
+        self.assertEqual((values['hotkey'], values['topmost'], values['transcription']), ('F8', '', ''))
+        # Several unused actions are not "the same shortcut".
+        self.assertEqual(values['capture_screen'], '')
+        with self.assertRaises(ValueError):
+            validate(dict(DEFAULTS, hotkey=None))
+
+    @unittest.skipUnless('passthrough' in DEFAULTS, 'this edition has no click-through')
+    def test_click_through_needs_a_way_back(self):
+        with self.assertRaises(ValueError):
+            validate(dict(DEFAULTS, restore=''))
+        self.assertEqual(validate(dict(DEFAULTS, restore='', passthrough=''))['restore'], '')
+
 
 import test_sessions
 import audio_answer as a

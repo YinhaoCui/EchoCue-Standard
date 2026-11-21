@@ -76,6 +76,23 @@ class WorkbenchTests(unittest.TestCase):
         self.assertEqual(self.page.evaluate("document.querySelector('#transcript .cue').dataset.kept"), '1')
         self.assertEqual(self.page.locator('#transcript .cue').count(), 3)
 
+    def test_shortcut_fields_record_the_keys_that_are_pressed(self):
+        self.settings('shortcuts')
+        field = self.page.locator('#hotkey-hotkey')
+        field.press('Control+Shift+K')
+        self.assertEqual(field.input_value(), 'Ctrl+Shift+K')
+        field.press('F9')
+        self.assertEqual(field.input_value(), 'F9')
+        field.press('Backspace')
+        self.assertEqual(field.input_value(), '')
+        self.assertEqual(
+            self.page.locator('#shortcuts .hotkey-group').evaluate_all('els => els.map(el => el.dataset.i)'),
+            ['During a meeting', 'Window'],
+        )
+        field.press('F9')
+        self.page.click('#hotkeys-save')
+        self.page.wait_for_function("current.hotkeys.hotkey === 'F9'")
+
     def settings(self, section):
         self.page.click('button.nav[data-view=settings]')
         self.page.click(f'#settings [data-section="{section}"]')

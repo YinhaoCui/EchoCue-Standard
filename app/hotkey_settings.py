@@ -1,4 +1,8 @@
-"""Validated, persistent global shortcut preferences."""
+"""Validated, persistent global shortcut preferences.
+
+A shortcut is modifiers plus one key, or a function key on its own. An empty
+value means the action has no shortcut and nothing is registered for it.
+"""
 
 import ctypes
 import time
@@ -31,7 +35,8 @@ def parse(value):
         parts = [lookup[p.lower()] for p in parts]
     except KeyError:
         raise ValueError('使用 Ctrl/Alt/Shift/Win + 字母、数字、F1–F24 或 Space。') from None
-    if (
+    bare_function_key = len(parts) == 1 and parts[0].startswith('F') and parts[0][1:].isdigit()
+    if not bare_function_key and (
         len(parts) < 2
         or parts[-1] not in KEYS
         or any(p not in MODIFIERS for p in parts[:-1])
@@ -44,9 +49,18 @@ def parse(value):
 
 
 def validate(values):
-    result = {action: parse(values.get(action, DEFAULTS[action]))[0] for action in DEFAULTS}
-    if len(set(result.values())) != len(result):
+    result = {}
+    for action in DEFAULTS:
+        value = values.get(action, DEFAULTS[action])
+        if not isinstance(value, str):
+            raise ValueError('快捷键必须包含修饰键和一个主键。')
+        result[action] = parse(value)[0] if value.strip() else ''
+    used = [value for value in result.values() if value]
+    if len(set(used)) != len(used):
         raise ValueError('不同功能不能使用相同快捷键。')
+    if result.get('passthrough') and not result.get('restore'):
+        # Click-through without a way back would leave the window unreachable.
+        raise ValueError('使用鼠标穿透时必须保留“恢复操作”快捷键。')
     return result
 
 
@@ -90,6 +104,8 @@ class HotkeySettings:
             failed = []
             snapshot = dict(self.hotkeys)
             for index, action in enumerate(DEFAULTS):
+                if not snapshot[action]:
+                    continue
                 label, mods, key = parse(snapshot[action])
                 identity = 0x4411 + index
                 if api.RegisterHotKey(None, identity, mods, key):
@@ -101,7 +117,7 @@ class HotkeySettings:
                     'hotkey_status',
                     '快捷键不可用：' + '；'.join(failed)
                     if failed
-                    else '快捷键已应用 · ' + snapshot['hotkey'] + ' 回答',
+                    else '快捷键已应用' + (' · ' + snapshot['hotkey'] + ' 回答' if snapshot['hotkey'] else ''),
                 )
             )
 

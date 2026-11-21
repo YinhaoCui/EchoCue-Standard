@@ -4314,3 +4314,19 @@ body[data-theme='workbench'] .menu .size-row button {
   display: inline-flex;
   align-items: center;
 }
+#shortcuts .hotkey-group {
+  margin: 20px 0 4px;
+  font-size: var(--text-md);
+  font-weight: var(--weight-regular);
+  color: var(--muted);
+}
+#shortcuts .hotkey-group:first-of-type {
+  margin-top: 8px;
+}
+body[data-theme='workbench'] #shortcuts label {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 320px);
+  column-gap: 16px;
+  justify-content: start;
+  align-items: center;
+}

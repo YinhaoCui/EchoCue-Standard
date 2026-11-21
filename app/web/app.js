@@ -152,8 +152,10 @@ const translations = {
   'Create an answer': '生成回答',
   'Always on top': '窗口置顶',
   'Start / pause transcription': '开始／暂停转录',
-  'Enter combinations such as Ctrl+Alt+P or Ctrl+Shift+F8. Changes apply after saving.':
-    '填写 Ctrl+Alt+P 或 Ctrl+Shift+F8 等组合，保存后生效。',
+  'During a meeting': '会议中',
+  'Not set': '未设置',
+  'Click a field and press the keys. Backspace clears it; an empty field is not used.':
+    '点一下输入框，直接按下按键。按退格键清空；留空的功能不使用快捷键。',
 };
 const optionNames = {
   'DeepL (built-in)': ['DeepL (built-in)', 'DeepL（内置免 Key）'],
@@ -1045,16 +1047,45 @@ hotkeyHeading.dataset.i = 'Global shortcuts';
 hotkeyHeading.textContent = t('Global shortcuts');
 hotkeySection.append(hotkeyHeading);
 const hotkeyHelp = document.createElement('p');
-hotkeyHelp.dataset.i = 'Enter combinations such as Ctrl+Alt+P or Ctrl+Shift+F8. Changes apply after saving.';
+hotkeyHelp.dataset.i = 'Click a field and press the keys. Backspace clears it; an empty field is not used.';
 hotkeyHelp.textContent = t(hotkeyHelp.dataset.i);
 hotkeySection.append(hotkeyHelp);
 const hotkeyLabels = {
   hotkey: 'Create an answer',
-  topmost: 'Always on top',
   transcription: 'Start / pause transcription',
   capture_screen: 'Capture screen',
+  topmost: 'Always on top',
 };
+const hotkeyGroups = { hotkey: 'During a meeting', topmost: 'Window' };
+function pressedShortcut(event) {
+  // The physical key, so the result does not depend on the input method or Shift.
+  const code = event.code || '';
+  const main = /^Key[A-Z]$/.test(code)
+    ? code.slice(3)
+    : /^Digit\d$/.test(code)
+      ? code.slice(5)
+      : /^F\d{1,2}$/.test(code) || code === 'Space'
+        ? code
+        : '';
+  if (!main) return '';
+  const modifiers = [
+    event.ctrlKey && 'Ctrl',
+    event.altKey && 'Alt',
+    event.shiftKey && 'Shift',
+    event.metaKey && 'Win',
+  ].filter(Boolean);
+  // Letters and digits alone stay ordinary typing; a function key may stand alone.
+  if (!modifiers.length && !main.startsWith('F')) return '';
+  return [...modifiers, main].join('+');
+}
 for (const [action, title] of Object.entries(hotkeyLabels)) {
+  if (hotkeyGroups[action]) {
+    const group = document.createElement('h3');
+    group.className = 'hotkey-group';
+    group.dataset.i = hotkeyGroups[action];
+    group.textContent = t(group.dataset.i);
+    hotkeySection.append(group);
+  }
   const label = document.createElement('label'),
     name = document.createElement('span'),
     input = document.createElement('input');
@@ -1063,8 +1094,23 @@ for (const [action, title] of Object.entries(hotkeyLabels)) {
   input.id = 'hotkey-' + action;
   input.dataset.hotkey = action;
   input.autocomplete = 'off';
+  input.placeholder = t('Not set');
+  input.dataset.placeholderI = 'Not set';
   input.spellcheck = false;
   input.addEventListener('input', () => {
+    hotkeyDraft = true;
+  });
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Backspace' || event.key === 'Delete') {
+      event.preventDefault();
+      input.value = '';
+      hotkeyDraft = true;
+      return;
+    }
+    const shortcut = pressedShortcut(event);
+    if (!shortcut) return;
+    event.preventDefault();
+    input.value = shortcut;
     hotkeyDraft = true;
   });
   label.append(name, input);

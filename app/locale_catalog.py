@@ -223,6 +223,8 @@ Kimi 官方余额：尚未查询。|Kimi balance has not been checked.
 在快捷键设置中自定义按键|Customize keys in Keyboard shortcuts
 例如 Ctrl+Alt+P 或 Ctrl+Shift+F8。保存后立即生效。|For example Ctrl+Alt+P or Ctrl+Shift+F8. Changes apply when saved.
 不同功能不能使用相同快捷键。|Each action must use a different shortcut.
+使用鼠标穿透时必须保留“恢复操作”快捷键。|Keep a Restore interaction shortcut while Click-through has one.
+快捷键已应用|Shortcuts applied
 快捷键必须包含修饰键和一个主键。|A shortcut requires modifiers and one main key.
 使用 Ctrl/Alt/Shift/Win + 字母、数字、F1–F24 或 Space。|Use Ctrl/Alt/Shift/Win plus a letter, digit, F1–F24 or Space.
 设置已保存。注册结果见下方；被占用的组合请重新修改。|Settings saved. Check registration below; change shortcuts already in use.

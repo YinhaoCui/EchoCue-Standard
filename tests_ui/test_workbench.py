@@ -44,6 +44,38 @@ class WorkbenchTests(unittest.TestCase):
             self.page.locator('#transcript').evaluate('el => {el.scrollTop=100; return el.scrollTop}'), 0
         )
 
+    def test_transcript_reads_as_a_cue_sheet_and_updates_only_changed_rows(self):
+        first = '[10:21:04]' + '\n' + 'How are threads different from processes?'
+        second = '[10:21:19 · Speaker 2]' + '\n' + '*Threads* share memory.'
+        with self.bridge.lock:
+            self.bridge.state.update(transcript=first + '\n\n' + second + '\n\n' + 'and the live', listening=True)
+            self.bridge.publish()
+        self.page.click('button.nav[data-view=listen]')
+        self.page.wait_for_function("document.querySelectorAll('#transcript .cue').length === 3")
+        rows = self.page.evaluate("""() => [...document.querySelectorAll('#transcript .cue')].map(row => ({
+            time: row.querySelector('.cue-time').firstChild?.textContent || '',
+            who: row.querySelector('.cue-who')?.textContent || '',
+            text: row.querySelector('.cue-text').textContent,
+            live: row.classList.contains('cue-live'),
+        }))""")
+        self.assertEqual(
+            rows,
+            [
+                dict(time='10:21:04', who='', text='How are threads different from processes?', live=False),
+                # Speech is shown as spoken: no Markdown, so the asterisks stay.
+                dict(time='10:21:19', who='Speaker 2', text='*Threads* share memory.', live=False),
+                dict(time='', who='', text='and the live', live=True),
+            ],
+        )
+        self.assertEqual(self.page.evaluate('document.body.dataset.listening'), '1')
+        self.page.evaluate("document.querySelector('#transcript .cue').dataset.kept = '1'")
+        with self.bridge.lock:
+            self.bridge.state['transcript'] = first + '\n\n' + second + '\n\n' + 'and the live draft grows'
+            self.bridge.publish()
+        self.page.wait_for_function("document.querySelector('#transcript').textContent.includes('draft grows')")
+        self.assertEqual(self.page.evaluate("document.querySelector('#transcript .cue').dataset.kept"), '1')
+        self.assertEqual(self.page.locator('#transcript .cue').count(), 3)
+
     def settings(self, section):
         self.page.click('button.nav[data-view=settings]')
         self.page.click(f'#settings [data-section="{section}"]')
@@ -58,7 +90,7 @@ class WorkbenchTests(unittest.TestCase):
         self.assertLessEqual(menu['y'] + menu['height'], button['y'])
         self.assertEqual(
             self.page.locator('#layout-reset').evaluate('el=>getComputedStyle(el).color'),
-            'rgb(238, 232, 220)' if self.theme == 'cosmic' else 'rgb(32, 44, 61)',
+            'rgb(236, 235, 231)' if self.theme == 'cosmic' else 'rgb(31, 30, 28)',
         )
 
     def test_prompt_tools_leave_space_for_focus_outline(self):
@@ -78,14 +110,14 @@ class WorkbenchTests(unittest.TestCase):
         folder = Path(__file__).resolve().parent.parent / 'work' / 'ui-redesign'
         self.page.screenshot(path=str(folder / 'layout-menu-fixed.png'))
 
-    def test_gold_palette_frost_and_theme_colors(self):
+    def test_dark_palette_frost_and_theme_colors(self):
         self.settings('interface-settings')
         self.assertEqual(
             self.page.locator('#ui_theme option').evaluate_all('(els)=>els.map(e=>e.value)'),
             ['workbench', 'cosmic', 'classic'],
         )
         self.page.select_option('#ui_theme', 'cosmic')
-        self.page.wait_for_function("document.body.dataset.palette === 'gold'")
+        self.page.wait_for_function("document.body.dataset.palette === 'dark'")
         self.assertEqual(self.page.evaluate('document.body.dataset.theme'), 'workbench')
         self.page.locator('#settings-listen-frost').fill('80')
         self.page.locator('#settings-listen-frost').dispatch_event('change')
@@ -100,14 +132,14 @@ class WorkbenchTests(unittest.TestCase):
         self.assertEqual(
             self.page.locator('.transcript-panel').evaluate('el=>getComputedStyle(el).backdropFilter'), 'none'
         )
-        self.assertEqual(self.page.input_value('#listen_panel_color'), '#151619')
+        self.assertEqual(self.page.input_value('#listen_panel_color'), '#1b1b1a')
         self.page.click('#layout-button')
         self.page.locator('#live-theme-colors').uncheck()
         self.page.wait_for_function("current.options.listen_theme_colors === '0'")
         self.page.locator('#live-theme-colors').check()
         self.page.wait_for_function("current.options.listen_theme_colors === '1'")
         self.page.evaluate("applyTheme('workbench')")
-        self.assertEqual(self.page.input_value('#listen_panel_color'), '#ffffff')
+        self.assertEqual(self.page.input_value('#listen_panel_color'), '#fbfaf8')
         self.page.evaluate("applyTheme('cosmic')")
         self.page.keyboard.press('Escape')
         self.page.set_viewport_size(dict(width=1440, height=960))
@@ -120,9 +152,9 @@ class WorkbenchTests(unittest.TestCase):
             self.bridge.publish()
         self.page.wait_for_function("language === 'zh'")
         folder = Path(__file__).resolve().parent.parent / 'work' / 'ui-redesign'
-        self.page.screenshot(path=str(folder / 'gold-listen.png'))
+        self.page.screenshot(path=str(folder / 'dark-listen.png'))
         self.settings('context')
-        self.page.screenshot(path=str(folder / 'gold-context.png'))
+        self.page.screenshot(path=str(folder / 'dark-context.png'))
 
     def test_color_swatches_and_applied_colors_are_exact(self):
         self.page.locator('#listen_transparency').fill('1')
@@ -158,7 +190,7 @@ class WorkbenchTests(unittest.TestCase):
         self.page.wait_for_function("current.options.listen_transparency === '99'")
         self.assertEqual(
             self.page.locator('.capsule').evaluate('el=>getComputedStyle(el).backgroundColor'),
-            'rgba(27, 28, 32, 0.01)' if self.theme == 'cosmic' else 'rgba(245, 247, 250, 0.01)',
+            'rgba(22, 22, 21, 0.01)' if self.theme == 'cosmic' else 'rgba(243, 241, 237, 0.01)',
         )
         self.assertEqual(self.page.locator('.capsule').evaluate('el=>getComputedStyle(el).opacity'), '1')
         self.assertEqual(self.page.evaluate('window.__nativeFrost.frost'), frost)
@@ -246,7 +278,7 @@ class WorkbenchTests(unittest.TestCase):
         self.assertTrue(self.page.is_visible('[data-action=export_session]'))
 
 
-class GoldWorkbenchTests(WorkbenchTests):
+class DarkWorkbenchTests(WorkbenchTests):
     theme = 'cosmic'
 
 

@@ -131,7 +131,9 @@ const translations = {
   'Delete preset': '删除预设',
   'Interface style': '界面风格',
   'Interface language': '界面语言',
-  'Classic Glass': '经典玻璃',
+  'Classic floating panels': '经典浮窗',
+  Light: '浅色',
+  Dark: '深色',
   'Midnight Studio': '深色工作台',
   'Cosmic Gravity': '宇宙引力',
   'Default model': '默认模型',
@@ -255,7 +257,7 @@ function midnightColumns() {
 function applyTheme(value) {
   const choice = ['classic', 'cosmic', 'workbench'].includes(value) ? value : 'workbench';
   const theme = choice === 'cosmic' ? 'workbench' : choice,
-    palette = choice === 'cosmic' ? 'gold' : 'light';
+    palette = choice === 'cosmic' ? 'dark' : 'light';
   for (const id of ['ui_theme', 'live-ui-theme']) if ($(id)?.options.length) $(id).value = choice;
   if (document.body.dataset.theme === theme && document.body.dataset.palette === palette) return;
   document.body.dataset.theme = theme;
@@ -269,12 +271,52 @@ function applyTheme(value) {
     scheduleShape();
   });
 }
+const CUE_HEADER = /^\[(\d{2}:\d{2}:\d{2})(?: ([^\]·]+?))?(?: · ([^\]]+))?\]$/;
+function renderCueSheet(el, text) {
+  // The transcript as a script: time in a narrow left column, speech beside it.
+  // Speech is spoken text, so it is shown as written, never parsed as Markdown.
+  // Only rows from the first changed block onwards are rebuilt.
+  const old = el._mdBlocks || [],
+    blocks = text.split(/\n{2,}/).filter((block) => block.trim());
+  if (!el._mdBlocks) el.textContent = '';
+  let same = 0;
+  while (same < old.length && same < blocks.length && old[same].key === blocks[same]) same++;
+  for (const gone of old.slice(same)) gone.node.remove();
+  const rows = old.slice(0, same);
+  for (const block of blocks.slice(same)) {
+    const lines = block.split('\n'),
+      header = CUE_HEADER.exec(lines[0].trim()),
+      node = document.createElement('div'),
+      time = document.createElement('div'),
+      speech = document.createElement('div');
+    node.className = header ? 'cue' : 'cue cue-live';
+    time.className = 'cue-time';
+    speech.className = 'cue-text';
+    if (header) {
+      time.textContent = header[1];
+      const who = [header[2], header[3]].filter(Boolean).map((name) => label(name));
+      if (who.length) {
+        const name = document.createElement('span');
+        name.className = 'cue-who';
+        name.textContent = who.join(' · ');
+        time.appendChild(name);
+      }
+    }
+    speech.textContent = (header ? lines.slice(1) : lines).join('\n');
+    node.append(time, speech);
+    el.appendChild(node);
+    rows.push({ key: block, node });
+  }
+  el._mdBlocks = rows;
+  el._mdSource = text;
+}
 function textStream(id, value) {
-  // Both panels show Markdown; renderMarkdown redraws only the blocks that changed.
+  // Answers are Markdown, the transcript is a cue sheet; both redraw only what changed.
   const el = $(id);
   if (el._mdSource === value) return;
   const follow = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
-  renderMarkdown(el, value || '');
+  if (id === 'transcript') renderCueSheet(el, value || '');
+  else renderMarkdown(el, value || '');
   if (follow) el.scrollTop = el.scrollHeight;
 }
 function attachments(id, images) {
@@ -612,9 +654,9 @@ function render(s) {
   if (language !== s.language) setLanguage(s.language);
   if (!pending.has('ui_theme')) applyTheme(s.options.ui_theme || 'workbench');
   const styles = [
-    { value: 'workbench', text: t('Dual-track Workbench') },
-    { value: 'cosmic', text: t('Workbench · Black Gold') },
-    { value: 'classic', text: t('Classic Glass') },
+    { value: 'workbench', text: t('Light') },
+    { value: 'cosmic', text: t('Dark') },
+    { value: 'classic', text: t('Classic floating panels') },
   ];
   for (const id of ['ui_theme', 'live-ui-theme'])
     choose(id, styles, pending.get('ui_theme') || s.options.ui_theme || 'workbench');
@@ -745,6 +787,7 @@ function render(s) {
   $('live-label').textContent = t(s.listening ? 'Listening' : 'Ready');
   $('pause').textContent = t(s.listening ? 'Pause' : 'Start transcription');
   $('pause').dataset.icon = s.listening ? 'pause-fill' : 'play-fill';
+  document.body.dataset.listening = s.listening ? '1' : '0';
   $('prepare').disabled = s.preparing;
   // The header already shows the idle or listening state; the status bar is for messages.
   if (Date.now() > noticeUntil) {
@@ -752,8 +795,8 @@ function render(s) {
     $('status').textContent = message === $('live-label').textContent ? '' : message;
   }
   $('model-badge').textContent = label(s.provider) + ' / ' + (s.model || 'Default');
-  $('job-count').textContent =
-    s.jobs.filter((j) => !j.done).length + (language === 'zh' ? ' 个回答进行中' : ' active answers');
+  const running = s.jobs.filter((j) => !j.done).length;
+  $('job-count').textContent = running ? running + (language === 'zh' ? ' 个回答进行中' : ' active answers') : '';
   $('usage').textContent = language === 'en' ? s.usage.replaceAll('本次', 'session') : s.usage;
   attachments('settings-attachments', s.images);
   attachments('live-attachments', s.images);
@@ -1634,19 +1677,19 @@ function applyColor(id, value) {
   let hex = /^#[0-9a-f]{6}$/i.test(value || '') ? value.toLowerCase() : COLOR_DEFAULTS[id];
   const follow = (pending.get('listen_theme_colors') ?? current?.options?.listen_theme_colors ?? '1') === '1';
   if (follow) {
-    const light = document.body.dataset.theme === 'workbench' && document.body.dataset.palette !== 'gold';
+    const light = document.body.dataset.theme === 'workbench' && document.body.dataset.palette !== 'dark';
     hex =
       id === 'listen_text_color'
         ? light
-          ? '#202c3d'
+          ? '#1f1e1c'
           : document.body.dataset.theme === 'classic'
             ? '#ffffff'
-            : '#f0e9da'
+            : '#ecebe7'
         : light
-          ? '#ffffff'
+          ? '#fbfaf8'
           : document.body.dataset.theme === 'classic'
             ? '#213953'
-            : '#151619';
+            : '#1b1b1a';
   }
   $(id).value = hex;
   const root = document.documentElement.style;

@@ -2,10 +2,8 @@
 (() => {
   const enabled = () => document.body.dataset.theme === 'workbench';
   Object.assign(translations, {
-    'Workbench · Black Gold': '双轨工作台 · 黑金',
     'Listening frost': '监听页磨砂度',
     'Follow theme colors': '监听配色跟随主题',
-    'Dual-track Workbench': '双轨工作台',
     'Models & connections': '模型与连接',
     'Interface settings': '界面设置',
     'Usage & diagnostics': '用量与检测',
@@ -218,6 +216,9 @@
       const heading = document.querySelector('.intro h1');
       heading.dataset.i = sections[id];
       heading.textContent = t(sections[id]);
+      // A section whose own heading repeats the page title shows the title once.
+      const own = $(id).querySelector(':scope > h2');
+      if (own) own.classList.toggle('repeats-title', own.textContent.trim() === heading.textContent.trim());
       document.querySelector('.settings-content').scrollTop = 0;
       if (id === 'preferences') document.querySelector('#preferences details').open = true;
       if (id === 'context') move(contextApplyBar, $('settings-footer'));

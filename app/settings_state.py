@@ -21,7 +21,7 @@ PRESENTATION_DEFAULTS = {
 def presentation_value(key, value):
     """Validate non-secret interface choices shared by loading and the web bridge."""
     if key == 'ui_theme':
-        if value == 'midnight':
+        if value == 'midnight':  # retired style: same layout as the light theme
             return 'workbench'
         if value not in ('classic', 'midnight', 'cosmic', 'workbench'):
             raise ValueError('Unknown interface style')

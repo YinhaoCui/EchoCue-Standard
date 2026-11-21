@@ -95,7 +95,7 @@ Use **Long question** to collect speech through pauses and submit manually. For 
 
 ### 🪟 A floating desktop workspace
 
-- Switch between Classic Glass, light Workbench, and Black Gold Workbench from Settings or the listening Layout menu. Workbench shows transcript and answer side by side with answer task tabs.
+- Switch between Light, Dark, and Classic floating panels from Settings or the listening Layout menu. Light and Dark show the transcript as a timed cue sheet beside the answer, with answer task tabs.
 - Restore an interactive window with the recovery shortcut.
 
 

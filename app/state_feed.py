@@ -1,6 +1,6 @@
 """Live state for the web page, sent as small changes instead of whole copies.
 
-The controller publishes a full snapshot about ten times a second. Before,
+The controller publishes a full snapshot about thirty times a second. Before,
 the page fetched the whole thing every 200 ms, including the full transcript
 and answer, even when nothing had changed. Now:
 

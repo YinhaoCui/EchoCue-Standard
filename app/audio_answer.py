@@ -53,6 +53,7 @@ from usage_ui import UsageUI
 
 SPECIAL_PROVIDERS = providers.CLI_PROVIDERS
 HOTKEY_ID = 0x4411
+POLL_MS = 20  # how often worker events (transcript, answer text) reach the controller
 
 
 from meeting_assistance import MeetingAssistance
@@ -189,7 +190,7 @@ class App(
         self.loading_settings = False
         self.provider.trace_add('write', lambda *_: self.schedule_save())
         root.protocol('WM_DELETE_WINDOW', self.close)
-        root.after(60, self.poll)
+        root.after(POLL_MS, self.poll)
 
     @property
     def output_text(self):
@@ -660,7 +661,7 @@ class App(
                 if not closing and hasattr(self, 'auto_answers'):
                     self.meeting_tick()
                 self.session_tick()
-                self.root.after(60, self.poll)
+                self.root.after(POLL_MS, self.poll)
 
     def handle_event(self, kind, text):
         if kind == 'caption_models':

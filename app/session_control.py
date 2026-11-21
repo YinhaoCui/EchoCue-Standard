@@ -10,6 +10,8 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from session_data import SessionStore, SessionWriter, record_text
 
+LIVE_RENDER_SECONDS = 0.03  # shortest gap between redraws of the live transcript draft
+
 
 def latency_summary(job):
     timing = job.get('timing', {})
@@ -87,7 +89,7 @@ class SessionControl:
 
     def session_tick(self):
         now = time.monotonic()
-        if self.live_dirty and now - self.last_live_render >= 0.12 and self.follow_live:
+        if self.live_dirty and now - self.last_live_render >= LIVE_RENDER_SECONDS and self.follow_live:
             self.render_live_transcript()
             self.live_dirty = False
             self.last_live_render = now

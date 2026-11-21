@@ -19,6 +19,7 @@ from hotkey_settings import DEFAULTS as HOTKEY_DEFAULTS
 ASSETS = Path(__file__).with_name('web')
 FONT_RANGE = (12, 40)
 COLOR = re.compile(r'#[0-9a-f]{6}')
+TICK_MS = 33  # how often the controller state is published to the page
 STATE_WAIT = 1.0  # longest a /state read waits for a change, in seconds
 
 
@@ -684,7 +685,7 @@ class GlassBridge:
             self.app.status.set('Interface sync error: ' + str(exc))
         finally:
             if not getattr(self.app, 'closed', False):
-                self.app.root.after(100, self.tick)
+                self.app.root.after(TICK_MS, self.tick)
 
     def read_state(self, path):
         return self.feed.read(**state_query(path))

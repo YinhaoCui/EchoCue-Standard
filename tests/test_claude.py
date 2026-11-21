@@ -40,7 +40,7 @@ class ClaudeTransportTests(unittest.TestCase):
         )
         state = (process, events, [], {})
         with patch.object(c, '_start', return_value=state), patch.object(c, '_dispose') as dispose:
-            self.assertEqual(c.read_model_catalog(a.ROOT), ['opus', 'claude-opus-test', 'custom-model'])
+            self.assertEqual(c.read_model_catalog(a.ROOT), ['claude-opus-test', 'custom-model'])
             request = json.loads(process.stdin.getvalue())
             self.assertEqual(request['type'], 'control_request')
             self.assertEqual(request['request']['subtype'], 'initialize')

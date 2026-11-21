@@ -309,6 +309,19 @@ def answer(request):
 
 
 def read_cli_models(name, *, details=False):
+    """Read a CLI provider's model catalog in the shared list order.
+
+    Returns (models, extra): extra is Codex's per-model capability list when
+    details=True, or Antigravity's raw catalog text when no ID could be parsed.
+    'default' is dropped because every picker already offers the provider default.
+    """
+    from model_catalog import arrange
+
+    models, extra = _read_cli_models(name, details=details)
+    return arrange(models, drop=('default',)), extra
+
+
+def _read_cli_models(name, *, details=False):
     """Read a CLI provider's model catalog.
 
     Returns (models, extra): extra is Codex's per-model capability list when

@@ -238,9 +238,11 @@ def main():
 
     import app_log
 
-    app_log.setup(ROOT / 'data' / 'logs')
+    from app_paths import data_path
+
+    app_log.setup(data_path(ROOT, 'logs'))
     app_log.get().info(
-        'Starting AI-listener %s',
+        'Starting EchoCue %s',
         (ROOT / 'VERSION').read_text(encoding='utf-8').strip() if (ROOT / 'VERSION').exists() else '',
     )
     root = tk.Tk()

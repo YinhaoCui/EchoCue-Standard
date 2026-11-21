@@ -124,14 +124,15 @@ def read_model_catalog(root, timeout=20):
                 continue
             if response.get('subtype') != 'success':
                 raise RuntimeError('Claude Code rejected the model catalog request. Check the CLI version and login.')
+            # An alias and the ID it resolves to are one model: list it once, by its exact ID.
+            items = [item for item in response.get('response', {}).get('models', []) if isinstance(item, dict)]
+            text = lambda item, key: item[key].strip() if isinstance(item.get(key), str) else ''
+            resolved = {text(item, 'value') for item in items if text(item, 'resolvedModel')}
             models = []
-            for item in response.get('response', {}).get('models', []):
-                if not isinstance(item, dict):
-                    continue
-                for key in ('value', 'resolvedModel'):
-                    value = item.get(key)
-                    if isinstance(value, str) and value.strip() and value not in models:
-                        models.append(value)
+            for item in items:
+                value = text(item, 'resolvedModel') or text(item, 'value')
+                if value and value not in models and (text(item, 'resolvedModel') or value not in resolved):
+                    models.append(value)
             if not models:
                 raise RuntimeError('Claude Code returned an empty model catalog. You can still enter a model ID.')
             return models

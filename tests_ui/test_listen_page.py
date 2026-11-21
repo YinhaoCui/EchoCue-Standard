@@ -9,7 +9,7 @@ import json
 import os
 import threading
 import unittest
-from http.server import BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 try:

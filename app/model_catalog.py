@@ -1,5 +1,7 @@
 """Offline model presets and descriptions; successful discovery replaces presets."""
 
+import re
+
 CATEGORIES = ('全部', '快速 / 省钱', '推理', 'Coding', '未分类')
 # Categories describe suitable tasks, not exclusive capabilities or speed guarantees.
 CATALOG = {
@@ -80,6 +82,52 @@ def chat_candidate(model):
     )
 
 
+EFFORT_ORDER = ('none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max')
+_VERSION = re.compile(r'\d+(?:\.\d+)*')
+
+
+def _parts(model):
+    """Split an ID into (family, version, snapshot date, effort rank) for ordering only."""
+    tokens = model.lower().split('-')
+    effort = 0
+    if len(tokens) > 1 and tokens[-1] in EFFORT_ORDER:
+        effort = EFFORT_ORDER.index(tokens.pop()) + 1
+    family, version, date = [], (), 0
+    for token in tokens:
+        if token.isdigit() and len(token) == 8:
+            date = int(token)
+        elif _VERSION.fullmatch(token):
+            version += tuple(int(n) for n in token.split('.'))
+        else:
+            family.append(token)
+    return tuple(family), version, date, effort
+
+
+def arrange(models, drop=()):
+    """One ordering for every model list.
+
+    Removes blanks, duplicates and the IDs in drop. Families stay in the order
+    the provider listed them (usually its recommendation); inside a family the
+    newest version comes first, undated IDs before dated snapshots, and effort
+    variants always run low to high.
+    """
+    seen, rows = set(), []
+    for model in models or ():
+        if not isinstance(model, str):
+            continue
+        model = model.strip()
+        if model and model not in seen and model not in drop:
+            seen.add(model)
+            rows.append((model, *_parts(model)))
+    order = {}
+    for row in rows:
+        order.setdefault(row[1], len(order))
+    rows.sort(key=lambda row: (row[3] != 0, -row[3], row[4]))
+    rows.sort(key=lambda row: row[2], reverse=True)
+    rows.sort(key=lambda row: order[row[1]])
+    return [row[0] for row in rows]
+
+
 def select_models(provider, discovered=None, category='全部'):
     # None means not fetched. An empty successful response must stay empty.
     presets = CATALOG.get(provider, {})
@@ -88,7 +136,8 @@ def select_models(provider, discovered=None, category='全部'):
     if provider == 'Meta Muse':
         discovered = [m for m in discovered if isinstance(m, str) and m.startswith(('muse-spark-', 'muse-wonder-'))]
     available = {m for m in discovered if isinstance(m, str) and m and chat_candidate(m)}
-    models = [m for m in presets if m in available] + sorted(available - set(presets))
+    # API listings have no meaningful order, so unknown families go alphabetically.
+    models = [m for m in presets if m in available] + arrange(sorted(available - set(presets)))
     return [
         m
         for m in models

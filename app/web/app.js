@@ -55,10 +55,8 @@ const translations = {
   Preferences: '偏好',
   Shortcuts: '快捷键',
   'Model speed test': '模型测速',
-  'Your workspace, ready when you are': '配置好，即可开始',
   'Set up your session': '准备你的会话',
   'AI model': '回答模型',
-  'Choose how your answers take shape.': '选择回答模型和思考方式。',
   Provider: '平台',
   Model: '模型',
   'Refresh models': '刷新模型',
@@ -69,7 +67,6 @@ const translations = {
   Thinking: '要求思考',
   'Answer style': '回答方式',
   'Audio & transcription': '音频与转录',
-  'Separate listening from answering.': '转录与回答独立设置。',
   'Audio source': '声音来源',
   'Playback device': '播放设备',
   'Transcription engine': '转录引擎',
@@ -749,7 +746,11 @@ function render(s) {
   $('pause').textContent = t(s.listening ? 'Pause' : 'Start transcription');
   $('pause').dataset.icon = s.listening ? 'pause-fill' : 'play-fill';
   $('prepare').disabled = s.preparing;
-  if (Date.now() > noticeUntil) $('status').textContent = t(s.status);
+  // The header already shows the idle or listening state; the status bar is for messages.
+  if (Date.now() > noticeUntil) {
+    const message = t(s.status);
+    $('status').textContent = message === $('live-label').textContent ? '' : message;
+  }
   $('model-badge').textContent = label(s.provider) + ' / ' + (s.model || 'Default');
   $('job-count').textContent =
     s.jobs.filter((j) => !j.done).length + (language === 'zh' ? ' 个回答进行中' : ' active answers');
@@ -1119,9 +1120,9 @@ const iconRules = {
   // Scope to buttons: <body data-view> must never receive an icon or inline-flex.
   'button[data-view="settings"]': 'gear',
   'button[data-view="listen"]': 'headphones',
-  '[data-section="models"],#models h2': 'cpu',
-  '[data-section="audio"],#audio h2': 'mic',
-  '[data-section="context"],#context h2': 'folder2-open',
+  '[data-section="models"]': 'cpu',
+  '[data-section="audio"]': 'mic',
+  '[data-section="context"]': 'folder2-open',
   '[data-section="preferences"]': 'sliders',
   '[data-section="meeting-settings"]': 'chat-square-text',
   '[data-section="usage-settings"]': 'speedometer2',
@@ -1133,7 +1134,7 @@ const iconRules = {
   '[data-action="import"]': 'file-earmark-plus',
   '[data-action="analyze"]': 'search',
   '[data-action="refresh"]': 'arrow-clockwise',
-  '[data-action="usage"],.usage-card h2': 'speedometer2',
+  '[data-action="usage"]': 'speedometer2',
   '[data-action="save_context"]': 'shield-check',
   '[data-action="screenshots"],#context-toggle': 'folder2-open',
   '[data-copy]': 'clipboard',
@@ -1145,8 +1146,6 @@ const iconRules = {
   '[data-native="minimize"]': 'dash',
   '[data-native="maximize"]': 'square',
   '[data-action="cancel"]': 'x-lg',
-  '.answer-panel h2': 'chat-square-text',
-  '.transcript-panel h2': 'soundwave',
 };
 for (const [selector, icon] of Object.entries(iconRules))
   document.querySelectorAll(selector).forEach((el) => (el.dataset.icon = icon));

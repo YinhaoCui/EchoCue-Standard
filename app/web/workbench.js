@@ -12,16 +12,12 @@
     'Style & language': '风格与语言',
     'Desktop effects': '桌面效果',
     'Text & colors': '文字与配色',
-    'Choose the application palette and display language.': '选择应用配色和显示语言。',
-    'Adjust desktop blur and transparency independently. Text stays sharp.': '独立调整桌面磨砂和透明度，文字保持清晰。',
-    'Follow the theme, or choose your own reading colors.': '使用主题配色，或单独调整阅读颜色与文字样式。',
     'Start with a template, then edit the prompt for this session.': '选择模板后可继续编辑提示词，应用后用于本次会话。',
     'Context & scenes': '上下文与场景',
     'Template library': '模板库',
     'All answers': '全部回答',
     'Back to live': '回到实时',
     'Return to listening': '返回监听',
-    'Choose a task above. Listening continues independently.': '在上方选择任务，实时转录会继续进行。',
     'Settings apply as you change them. Context drafts and shortcuts have their own Apply button.':
       '普通设置修改后即时保存；上下文草稿和快捷键需单独应用。',
     'No answer yet. Request an answer when you are ready.': '暂无回答，准备好后点击“回答”。',
@@ -138,25 +134,22 @@
     document.querySelector('#layout-menu .color-row'),
     ...document.querySelectorAll('#layout-menu [data-toggle]'),
   ];
-  const appearanceGroup = (title, description) => {
+  const appearanceGroup = (title) => {
     const group = make('section', 'interface-group'),
       heading = make('div', 'interface-group-heading');
-    heading.append(make('h3', '', title), make('p', '', description));
+    heading.append(make('h3', '', title));
     group.append(heading);
     appearance.append(group);
     return group;
   };
-  const styleGroup = appearanceGroup('Style & language', 'Choose the application palette and display language.');
+  const styleGroup = appearanceGroup('Style & language');
   styleGroup.append(document.querySelector('.appearance-controls'));
-  const effectsGroup = appearanceGroup(
-    'Desktop effects',
-    'Adjust desktop blur and transparency independently. Text stays sharp.',
-  );
+  const effectsGroup = appearanceGroup('Desktop effects');
   const effectsFields = make('div', 'interface-effects');
   effectsGroup.append(effectsFields);
   const frostSettings = $('settings-listen-frost').closest('.frost-controls');
   effectsFields.append($('settings-listen-frost').closest('label'));
-  const colorGroup = appearanceGroup('Text & colors', 'Follow the theme, or choose your own reading colors.');
+  const colorGroup = appearanceGroup('Text & colors');
   colorGroup.classList.add('interface-colors');
   colorGroup.append($('settings-theme-colors').closest('label'), listeningControls);
   frostSettings.remove();
@@ -377,9 +370,8 @@
       output.setAttribute('aria-labelledby', 'answer-tab-' + selected);
     }
     const job = jobs.find((j) => String(j.id) === selected);
-    taskLabel.textContent = job
-      ? [job.provider, job.model, job.state].filter(Boolean).join(' · ')
-      : t('Choose a task above. Listening continues independently.');
+    taskLabel.textContent = job ? [job.provider, job.model, job.state].filter(Boolean).join(' · ') : '';
+    taskInfo.hidden = !job;
     cancel.hidden = !job || job.done;
     cancel.textContent = language === 'zh' ? '取消此任务' : 'Cancel this task';
     const text = job?.span ? s.output.slice(job.span[0], job.span[1]) : s.output;

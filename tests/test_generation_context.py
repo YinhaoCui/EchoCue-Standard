@@ -261,7 +261,7 @@ class SparePreparationTests(unittest.TestCase):
     def test_only_one_conversation_prepared_even_with_legacy_spare_enabled(self):
         self.ui.provider.set('Codex')
         self.ui.update_provider()
-        self.ui.advanced['spare_session'].set('开启')
+        self.ui.advanced['spare_session'].set('on')
         with patch.object(a, 'codex_answer', return_value='已准备') as answer:
             AnswerJobs.prepare_model_context(self.ui)
             self.ui.context_warm_worker.join(3)
@@ -274,7 +274,7 @@ class SparePreparationTests(unittest.TestCase):
     def test_preparation_failure_does_not_retry_on_second_spare(self):
         self.ui.provider.set('Codex')
         self.ui.update_provider()
-        self.ui.advanced['spare_session'].set('开启')
+        self.ui.advanced['spare_session'].set('on')
         with patch.object(a, 'codex_answer', side_effect=RuntimeError('auth')) as answer:
             AnswerJobs.prepare_model_context(self.ui)
             self.ui.context_warm_worker.join(3)
@@ -285,7 +285,7 @@ class SparePreparationTests(unittest.TestCase):
         self.ui.provider.set('LM Studio')
         self.ui.update_provider()
         self.ui.model.set('test-model')
-        self.ui.advanced['spare_session'].set('开启')
+        self.ui.advanced['spare_session'].set('on')
         with (
             patch.object(lm, 'capabilities', return_value=('http://localhost/api/v1', None)),
             patch.object(a, 'compatible_answer', side_effect=lambda *args, **kwargs: args[6]('已准备')) as answer,

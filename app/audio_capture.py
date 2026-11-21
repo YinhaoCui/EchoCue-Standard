@@ -1,7 +1,6 @@
 """System-audio and microphone capture, and one-shot whisper transcription."""
 
 from app_paths import ROOT, WORK
-import audioop
 from collections import deque
 import io
 import os
@@ -11,7 +10,6 @@ import threading
 import time
 import uuid
 import wave
-import pyaudiowpatch as pa
 from session_support import Cancelled
 
 RATE = 16000
@@ -51,8 +49,19 @@ class AudioBuffer:
             self.blocks.clear()
 
 
+def native_audio():
+    """Load the native capture packages only when a Capture is created."""
+    global audioop, pa
+    import audioop
+    import pyaudiowpatch as pa
+
+
+audioop = pa = None
+
+
 class Capture:
     def __init__(self):
+        native_audio()
         self.audio = pa.PyAudio()
         self.buffer = AudioBuffer()
         self.stream = None

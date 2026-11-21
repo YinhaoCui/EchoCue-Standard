@@ -229,7 +229,7 @@ def install_hooks():
     original_menu_add = tk.Menu.add
     original_entry = tk.Menu.entryconfigure
 
-    def menu_add(widget, itemType, cnf={}, **kw):
+    def menu_add(widget, itemType, cnf={}, **kw):  # noqa: B006 - mirrors Tk's signature
         kw = dict(cnf, **kw)
         locale = owner(widget)
         label = kw.get('label')

@@ -14,7 +14,7 @@ class LongQuestionTests(unittest.TestCase):
 
     def test_long_mode_blocks_predictions_even_for_questions(self):
         self.ui.advanced['question_mode'].set('长问题')
-        self.ui.advanced['speculate'].set('每段定稿')
+        self.ui.advanced['speculate'].set('segments')
         with patch.object(self.ui, 'request_inputs') as collect:
             AnswerJobs.maybe_speculate(self.ui, {'sequence': 1, 'body': 'Why?', 'ok': True})
         collect.assert_not_called()

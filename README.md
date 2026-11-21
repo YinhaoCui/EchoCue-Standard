@@ -174,6 +174,14 @@ python -m pip install --only-binary=:all: --no-binary=proxy_tools --target vendo
 # Download and verify local transcription models
 python tools/setup_streaming.py --models-only
 
+# Regression tests
+python tools/run_tests.py
+
+# Lint and format check (pip install -r requirements-dev.txt)
+python -m ruff check .
+python -m ruff format --check .
+npx prettier@3.6.2 --check "app/web/*.js" "app/web/*.css"
+
 # Build the launcher, then run
 powershell -ExecutionPolicy Bypass -File tools/build_launcher.ps1
 .\EchoCue.exe
@@ -195,6 +203,8 @@ python tools/package_release.py
 ```
 
 Tests require loopback connections and desktop window creation. UI tests also require Edge. Packaging produces `dist/EchoCue-Standard-<version>-windows-x64.zip`, excluding personal `data/` and `work/`.
+
+A diagnostic log is written to `data/logs/ai-listener.log` (rotated at 1 MB, three backups). API keys are replaced with `[KEY]` before anything is written.
 
 | Directory | Contents |
 | --- | --- |

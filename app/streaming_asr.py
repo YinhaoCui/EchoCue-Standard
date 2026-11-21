@@ -1,6 +1,5 @@
 """Resident streaming recognizers with independent state for each audio source."""
 
-import audioop
 from pathlib import Path
 import queue
 import time

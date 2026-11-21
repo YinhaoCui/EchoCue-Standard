@@ -1,5 +1,8 @@
 """Asynchronous caption translation; original transcripts never leave their source buffer."""
 
+import app_log
+
+
 from collections import deque
 import re
 import threading
@@ -371,9 +374,8 @@ class CaptionPresenter:
                 )
                 error = None
             except Exception as exc:
-                result, error = '', str(exc)
-                if inputs['key']:
-                    error = error.replace(inputs['key'], '[KEY]')
+                result, error = '', app_log.redact(exc, inputs['key'])
+                app_log.get('captions').warning('Caption translation failed: %s', error)
             self.app.events.put(('caption_result', (epoch, key, result, error)))
 
         threading.Thread(target=work, daemon=True, name='caption-translation').start()
@@ -511,7 +513,6 @@ def translate(inputs, text, language, cancel, app, on_partial=None):
         if on_partial is not None:
             on_partial(result)
         return result
-    import audio_answer as a
     import providers
 
     provider, model, key = inputs['provider'], inputs['model'], inputs['key']
@@ -534,49 +535,26 @@ def translate(inputs, text, language, cancel, app, on_partial=None):
             on_partial(''.join(pieces))
 
     report = lambda value: usage.update(value or {})
-    kwargs = dict(on_usage=report, total_timeout=60, effort=inputs['effort'])
     success = False
     try:
-        if providers.is_cli(provider):
-            providers.cli_answer(
-                provider,
-                prompt,
-                options[providers.model_option(provider)],
-                cancel,
-                emit,
+        providers.answer(
+            providers.AnswerRequest(
+                provider=provider,
+                model=options[providers.model_option(provider)] if providers.is_cli(provider) else model,
+                cancel=cancel,
+                emit=emit,
                 transcript=text,
                 instructions=system,
-                **kwargs,
-            )
-        elif provider == 'Gemini':
-            a.gemini_answer(
-                None,
-                key,
-                model,
-                system,
-                cancel,
-                emit,
-                transcript=text,
+                prompt=prompt,
                 system_prompt=system,
-                max_output=None,
-                fast=True,
-                **kwargs,
-            )
-        else:
-            a.compatible_answer(
-                provider,
-                text,
-                key,
-                model,
-                system,
-                cancel,
-                emit,
+                key=key,
                 base=options['lm_base'],
-                system_prompt=system,
-                max_output=None,
-                reasoning=False,
-                **kwargs,
+                on_usage=report,
+                timeout=60,
+                effort=inputs['effort'],
+                fast=True,
             )
+        )
         result = ''.join(pieces).strip()
         if not result or cancel.is_set():
             raise RuntimeError('Translation cancelled or empty')

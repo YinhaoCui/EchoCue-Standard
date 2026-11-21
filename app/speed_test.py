@@ -1,5 +1,8 @@
 """Synthetic model latency test, isolated from transcript and personal context."""
 
+import app_log
+
+
 import threading
 import time
 import uuid
@@ -149,8 +152,6 @@ class SpeedTestUI:
             self.speed_window.deiconify()
             self.speed_window.lift()
             return
-        import audio_answer as a
-
         if not hasattr(self, 'speed_results'):
             self.speed_results = []
         window = self.speed_window = tk.Toplevel(self.root)
@@ -245,8 +246,6 @@ class SpeedTestUI:
         )
 
     def change_speed_provider(self):
-        import audio_answer as a
-
         if self.speed_editing is not None:
             self.speed_models[self.speed_editing] = self.speed_model.get()
         provider = self.speed_provider.get()
@@ -392,57 +391,31 @@ class SpeedTestUI:
         prompt = benchmark_prompt(provider, model)
 
         def generate(emit, usage):
-            if providers.is_cli(provider):
-                # Codex builds its own answer-only prompt around the benchmark question.
-                providers.cli_answer(
-                    provider,
-                    None if provider == providers.CODEX else prompt,
-                    model,
-                    cancel,
-                    emit,
-                    on_usage=usage,
-                    total_timeout=120,
-                    effort=effort,
+            # Codex builds its own answer-only prompt around the benchmark question.
+            providers.answer(
+                providers.AnswerRequest(
+                    provider=provider,
+                    model=model,
+                    cancel=cancel,
+                    emit=emit,
                     transcript=prompt,
-                )
-            elif provider == 'Gemini':
-                a.gemini_answer(
-                    None,
-                    key,
-                    model,
-                    '',
-                    cancel,
-                    emit,
-                    fast=fast,
-                    on_usage=usage,
-                    transcript=prompt,
-                    total_timeout=120,
-                    max_output=None,
-                    effort=effort,
-                )
-            else:
-                a.compatible_answer(
-                    provider,
-                    prompt,
-                    key,
-                    model,
-                    '',
-                    cancel,
-                    emit,
-                    reasoning=reasoning,
+                    prompt=None if provider == providers.CODEX else prompt,
+                    key=key,
                     base=options['lm_base'],
-                    total_timeout=120,
                     on_usage=usage,
-                    max_output=None,
+                    timeout=120,
                     effort=effort,
+                    reasoning=reasoning,
+                    fast=fast,
                 )
+            )
 
         def work():
             result = measure(generate, streaming=True)
             if cancel.is_set():
                 result['status'] = '已取消'
             if key:
-                result['error'] = result['error'].replace(key, '[KEY]')
+                result['error'] = app_log.redact(result['error'], key)
             result.update(
                 provider=provider,
                 model=model or '默认',

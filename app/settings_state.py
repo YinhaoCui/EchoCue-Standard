@@ -1,7 +1,10 @@
 """Saved answer options and reference context. Holds state only; the web UI edits it."""
 
 import tkinter as tk
+
 from account_support import load_settings
+import app_log
+import option_values
 import providers
 from caption_models import CAPTION_PROVIDERS
 from meeting_assistance import DEFAULTS as MEETING_DEFAULTS, OPTIONS as MEETING_OPTIONS
@@ -51,15 +54,15 @@ DEFAULT_OPTIONS = {
     'gemini_route': '文字（先转录）',
     'lm_base': 'http://127.0.0.1:1234/v1',
     **{option: '' for option in providers.MODEL_OPTIONS},
-    'deadline': '不限时',
-    'max_output': '服务默认',
+    'deadline': option_values.UNLIMITED,
+    'max_output': option_values.SERVICE_DEFAULT,
     'content_policy': 'unrestricted',
     'question_mode': '长问题',
-    'speculate': '仅疑问句',
-    'warm_context': '开启',
+    'speculate': option_values.QUESTIONS,
+    'warm_context': option_values.ON,
     'thinking_policy': '自动',
-    'incremental_context': '开启',
-    'spare_session': '关闭',
+    'incremental_context': option_values.ON,
+    'spare_session': option_values.OFF,
     'background_mode': 'frosted',
     'listen_transparency': '12',
     'transcript_font_size': '21',
@@ -127,11 +130,13 @@ class SettingsState:
                 options[key] = presentation_value(key, options.get(key, default))
             except (ValueError, TypeError, OverflowError):
                 options[key] = default
+        for key in option_values.CHOICES:
+            options[key] = option_values.normalize(key, options.get(key, DEFAULT_OPTIONS[key]))
         if options.get('content_policy') != 'unrestricted':
-            options.update(deadline='不限时', max_output='服务默认')
+            options.update(deadline=option_values.UNLIMITED, max_output=option_values.SERVICE_DEFAULT)
         if options.get('asr_engine') not in ASR_MODELS:
             options['asr_engine'] = DEFAULT_ASR
-        options['spare_session'] = '关闭'
+        options['spare_session'] = option_values.OFF
         for key, values in MEETING_OPTIONS.items():
             if options.get(key) not in values:
                 options[key] = MEETING_DEFAULTS[key]
@@ -149,7 +154,7 @@ class SettingsState:
             if not isinstance(self.saved_prompt, str):
                 self.saved_prompt = ''
         except Exception:
-            pass
+            app_log.get('settings').warning('Saved context could not be loaded', exc_info=True)
 
     def context_changed(self):
         """Invalidate derived material and in-flight memory after a source edit."""

@@ -5,7 +5,6 @@ from pathlib import Path
 import threading
 import time
 
-import numpy as np
 
 MODEL = 'runtime/asr/speaker/campplus.onnx'
 
@@ -25,6 +24,8 @@ class EchoSuppressor:
     def process(self, source, pcm, enabled, now=None):
         if not enabled:
             return pcm
+        import numpy as np
+
         now = time.monotonic() if now is None else now
         values = np.frombuffer(pcm, dtype=np.int16).astype(np.float32)
         with self.lock:
@@ -73,6 +74,8 @@ class LocalSpeakers:
         self.next_id = first
 
     def identify(self, source, pcm, rate):
+        import numpy as np
+
         data = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768
         if len(data) < rate or float(data @ data) < len(data) * 0.002**2:
             return None

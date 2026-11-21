@@ -1,5 +1,6 @@
 """Token usage summaries, provider balances and the Usage dialog."""
 
+import app_log
 import json
 import threading
 import time
@@ -182,7 +183,7 @@ class UsageUI:
             try:
                 result = deepseek_balance(key, provider)
             except Exception as exc:
-                result = provider + '：' + str(exc).replace(key, '[KEY]')
+                result = provider + '：' + app_log.redact(exc, key)
             self.events.put(('provider_balance', (provider, result)))
 
         threading.Thread(target=read, daemon=True).start()

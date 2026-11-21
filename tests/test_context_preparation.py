@@ -83,7 +83,7 @@ class ContextPreparationTests(unittest.TestCase):
         self.ui.token_ledger.record.assert_called()
 
     def test_disabled_preparation_does_not_call_provider(self):
-        self.ui.advanced['warm_context'].set('关闭')
+        self.ui.advanced['warm_context'].set('off')
         with patch.object(a, 'codex_answer') as request:
             AnswerJobs.prepare_model_context(self.ui)
             request.assert_not_called()

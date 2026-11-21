@@ -169,7 +169,7 @@ class UITests(unittest.TestCase):
         self.root.withdraw()
         self.ui = a.App(self.root)
         self.ui.token_ledger.summary.return_value = ''
-        self.ui.advanced['spare_session'].set('关闭')
+        self.ui.advanced['spare_session'].set('off')
         self.ui.capture.active.return_value = False
         self.ui.mic.active.return_value = False
         self.ui.capture.error = self.ui.mic.error = ''

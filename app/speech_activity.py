@@ -1,6 +1,6 @@
 """Per-source WebRTC speech detection; no audio is sent to a service."""
 
-import audioop
+from pcm import rms
 
 
 class SpeechActivity:
@@ -16,7 +16,7 @@ class SpeechActivity:
 
     def voiced(self, pcm):
         if self.vad is None:
-            return audioop.rms(pcm, 2) >= 100
+            return rms(pcm) >= 100
         self.pending += pcm
         size = self.rate // 50 * 2
         decisions = []

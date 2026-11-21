@@ -5,6 +5,7 @@ widgets. Tk remains as the event loop and for the small native dialogs
 (usage, speed test, sessions, screenshots, transcript and glossary).
 """
 
+import app_log
 from app_paths import ROOT, WORK, SETTINGS_FILE, data_path
 import ctypes
 import os
@@ -100,6 +101,7 @@ class App(
         try:
             self.saved = load_settings(SETTINGS_FILE)
         except Exception:
+            app_log.get('settings').warning('Settings could not be decrypted', exc_info=True)
             self.saved = {}
             self.preferences_error = '已有配置无法解密；请重新填写 Key 并保存。'
         from localization import Locale
@@ -246,7 +248,7 @@ class App(
                 models = list_provider_models(provider, key, base=base)
                 self.events.put(('models_refreshed', (provider, catalog_key, models, None)))
             except Exception as exc:
-                message = str(exc).replace(key, '[KEY]') if key else str(exc)
+                message = app_log.redact(exc, key)
                 self.events.put(('models_refreshed', (provider, catalog_key, None, message)))
 
         threading.Thread(target=work, daemon=True).start()
@@ -415,9 +417,7 @@ class App(
                         result = f'Key 可访问目录；{selected}。生成权限/余额/额度请再测试模型。'
                     results.append(name + '：' + result)
                 except Exception as exc:
-                    results.append(
-                        name + '：检测未通过，' + (str(exc).replace(secret, '[KEY]') if secret else str(exc))
-                    )
+                    results.append(name + '：检测未通过，' + app_log.redact(exc, secret))
             message = '\n'.join(results)
             self.events.put(('key_check', (revision, message)))
             if inline:

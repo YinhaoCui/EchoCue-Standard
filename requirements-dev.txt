@@ -1,3 +1,5 @@
 # Development-only tools. Not bundled in the release.
 # Browser tests for the web UI: python tools/run_ui_tests.py
 playwright==1.64.0
+# Lint and format: python -m ruff check . && python -m ruff format --check .
+ruff==0.14.0

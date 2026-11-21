@@ -236,7 +236,15 @@ def main():
     import audio_answer as a
     from glass_bridge import GlassBridge
 
+    import app_log
+
+    app_log.setup(ROOT / 'data' / 'logs')
+    app_log.get().info(
+        'Starting AI-listener %s',
+        (ROOT / 'VERSION').read_text(encoding='utf-8').strip() if (ROOT / 'VERSION').exists() else '',
+    )
     root = tk.Tk()
+    app_log.install_hooks(root)
     app = a.App(root)
     root.iconbitmap(str(ROOT / 'app/assets/echocue.ico'))
     bridge = GlassBridge(app)

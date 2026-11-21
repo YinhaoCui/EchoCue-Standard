@@ -173,7 +173,7 @@ class SpeculationTests(unittest.TestCase):
         self.ui.update_provider()
         self.ui.model.set('test-model')
         self.ui.advanced['question_mode'].set('快速问答')
-        self.ui.advanced['speculate'].set('每段定稿')
+        self.ui.advanced['speculate'].set('segments')
         self.calls = []
 
         def answer(provider, transcript, key, model, instructions, cancel, emit, **kw):
@@ -227,10 +227,10 @@ class SpeculationTests(unittest.TestCase):
     def test_off_and_non_question_modes_skip(self):
         with self.prepare():
             record = self.segment()
-            self.ui.advanced['speculate'].set('关闭')
+            self.ui.advanced['speculate'].set('off')
             answer_jobs.AnswerJobs.maybe_speculate(self.ui, record)
             self.assertIsNone(getattr(self.ui, 'speculation', None))
-            self.ui.advanced['speculate'].set('仅疑问句')
+            self.ui.advanced['speculate'].set('questions')
             answer_jobs.AnswerJobs.maybe_speculate(self.ui, dict(record, body='好的谢谢'))
             self.assertIsNone(getattr(self.ui, 'speculation', None))
         self.assertEqual(self.calls, [])

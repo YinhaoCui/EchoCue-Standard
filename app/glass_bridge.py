@@ -1,8 +1,10 @@
 """Loopback-only web presentation adapter. Tk operations stay on the UI thread."""
 
+import app_log
+
+
 import base64
 import json
-import mimetypes
 from pathlib import Path
 import queue
 import re
@@ -444,6 +446,10 @@ class GlassBridge:
             'deadline',
             'max_output',
         }
+        import option_values
+
+        for key in option_values.CHOICES.keys() & data.keys():
+            option_values.validate(key, data[key])
         for key in allowed & data.keys():
             if key in ('source', 'asr_engine') and (a.capture.active() or a.mic.active()):
                 if data[key] != a.advanced[key].get():
@@ -667,10 +673,14 @@ class GlassBridge:
             try:
                 self.command(command)
             except Exception as exc:
+                app_log.get('bridge').warning(
+                    'Command %r failed', command.get('action') if isinstance(command, dict) else command, exc_info=True
+                )
                 self.app.status.set(str(exc))
         try:
             self.feed.publish(self.snapshot())
         except Exception as exc:
+            app_log.get('bridge').warning('Interface sync failed', exc_info=True)
             self.app.status.set('Interface sync error: ' + str(exc))
         finally:
             if not getattr(self.app, 'closed', False):

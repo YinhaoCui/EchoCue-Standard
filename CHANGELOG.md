@@ -35,6 +35,12 @@
 - Rename the application, launcher, assets, internal identifiers, and portable packages to EchoCue.
 - Include both README languages in portable packages.
 
+- Write a local diagnostic log to `data/logs/` with API keys redacted, including uncaught errors.
+- Store on/off, speculation, time-limit and output-limit options as language-neutral codes; older saved settings are converted when loaded.
+- Route answers, caption translation and the speed test through one provider entry point.
+- Move the answer pipeline into a standalone `AnswerRunner`, and load native audio packages only when capture starts.
+- Add ruff and prettier checks to CI and format the code base.
+
 ## 2026.10.23.1
 
 - Edit context and prompts directly in the context panel, with explicit apply/discard and protection against stale updates.

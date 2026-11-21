@@ -68,7 +68,7 @@ class PredictionReuseTests(unittest.TestCase):
         for option, value in (
             ('lm_base', 'http://localhost:4321/v1'),
             ('thinking_policy', '关闭'),
-            ('incremental_context', '关闭'),
+            ('incremental_context', 'off'),
         ):
             changed = dict(before, options={**before['options'], option: value})
             self.assertNotEqual(original, answer_jobs.request_signature(changed, 'What next?'))

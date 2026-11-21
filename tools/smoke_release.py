@@ -18,6 +18,8 @@ def main():
     sys.path[:0] = [str(internal / 'app'), str(internal / 'vendor')]
     import tkinter as tk
     import audio_answer
+    import audioop  # loaded lazily by the app, so check the bundle here
+    import pyaudiowpatch
     import numpy
     import sherpa_onnx
     import pypdf

@@ -106,7 +106,6 @@ def gemini_http_error(exc):
     if 'API_KEY_SERVICE_BLOCKED' in reasons or 'API_KEY_HTTP_REFERRER_BLOCKED' in reasons:
         return 'Key 的应用/API 限制阻止了访问，请检查 Google 项目的 Key 限制。'
     return {
-        400: '请求被拒绝；请检查模型/音频支持、地区或项目设置，不能仅据此判断 Key 无效。',
         400: '请求参数或输入类型不支持；请切换文字模式，检测模型权限并重试。',
         500: 'Google 服务内部错误，请稍后重试或换模型。',
         503: 'Google 服务繁忙，请稍后重试或换平台。',

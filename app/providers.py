@@ -190,6 +190,124 @@ def cli_answer(
     raise ValueError('Not a local-login provider: ' + str(name))
 
 
+@dataclass
+class AnswerRequest:
+    """One generation request in a provider-neutral shape. See answer()."""
+
+    provider: str
+    model: str  # API model ID, or the CLI provider's model option value
+    cancel: threading.Event
+    emit: object  # called with each streamed text piece
+    transcript: str = ''
+    instructions: str = ''
+    prompt: object = None  # CLI/LM Studio transport prompt: a string or a ContextPrompt
+    system_prompt: str | None = None
+    key: str = ''
+    base: str | None = None  # OpenAI-compatible base URL (LM Studio)
+    on_usage: object = None
+    on_status: object = None  # called with a status line when the transport changes mode
+    timeout: float = 600
+    effort: str = '自动'
+    reasoning: bool = False
+    fast: bool = False
+    output_limit: int | None = None
+    images: tuple | list = ()
+    session_key: str | None = None
+    thinking_policy: str = '自动'
+    lm_native: bool = False  # try LM Studio's native stateful API before the compatible endpoint
+
+
+def answer(request):
+    """Send a request through the provider's transport and stream text to request.emit.
+
+    Every caller (answers, caption translation, speed test) goes through here, so
+    a new provider needs one branch here instead of one per caller. Transports
+    are looked up on audio_answer at call time so one patch point covers every caller.
+    """
+    import audio_answer as a
+
+    r = request
+    if is_cli(r.provider):
+        from screenshot_context import image_files
+
+        with image_files(r.images if r.provider == CODEX else (), a.WORK) as paths:
+            return cli_answer(
+                r.provider,
+                r.prompt,
+                r.model,
+                r.cancel,
+                r.emit,
+                on_usage=r.on_usage,
+                total_timeout=r.timeout,
+                effort=r.effort,
+                session_key=r.session_key,
+                image_paths=paths,
+                images=r.images,
+                thinking_policy=r.thinking_policy,
+                transcript=r.transcript,
+                instructions=r.instructions,
+            )
+    images = {'images': r.images} if r.images else {}
+    if r.provider == GEMINI:
+        return a.gemini_answer(
+            None,
+            r.key,
+            r.model,
+            r.instructions,
+            r.cancel,
+            r.emit,
+            fast=r.fast,
+            transcript=r.transcript,
+            on_usage=r.on_usage,
+            max_output=r.output_limit,
+            total_timeout=r.timeout,
+            effort=r.effort,
+            system_prompt=r.system_prompt,
+            **images,
+        )
+    effort, reasoning = r.effort, r.reasoning
+    if r.provider == LM_STUDIO and r.lm_native:
+        import lmstudio_support
+
+        native = lmstudio_support.answer(
+            r.base,
+            r.key,
+            r.model,
+            r.prompt,
+            r.system_prompt,
+            r.cancel,
+            r.emit,
+            r.on_usage,
+            r.timeout,
+            r.output_limit,
+            r.thinking_policy,
+            r.session_key,
+            r.images,
+        )
+        if native:
+            return native
+        if r.on_status:
+            r.on_status('当前 LM Studio 不支持原生会话接口；使用完整上下文兼容模式，思考由本地服务控制。')
+        effort, reasoning, images = '服务默认', False, {'images': r.images}
+    return a.compatible_answer(
+        r.provider,
+        r.transcript,
+        r.key,
+        r.model,
+        r.instructions,
+        r.cancel,
+        r.emit,
+        reasoning=reasoning,
+        base=r.base,
+        on_usage=r.on_usage,
+        max_output=r.output_limit,
+        total_timeout=r.timeout,
+        effort=effort,
+        system_prompt=r.system_prompt,
+        **images,
+    )
+
+
 def read_cli_models(name, *, details=False):
     """Read a CLI provider's model catalog.
 

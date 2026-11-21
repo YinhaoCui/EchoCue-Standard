@@ -9,7 +9,7 @@ import subprocess
 import threading
 import time
 from session_support import Cancelled
-from generation_context import render, checkpoint, send_images, image_indices
+from generation_context import render, checkpoint, image_indices
 
 PROVIDER = 'Claude Code（本机登录）'
 MODELS = ['sonnet', 'opus', 'haiku']

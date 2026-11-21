@@ -168,8 +168,6 @@ const optionNames = {
   开启: ['On', '开启'],
   关闭: ['Off', '关闭'],
   自动: ['Auto', '自动'],
-  仅疑问句: ['Questions only', '仅疑问句'],
-  每段定稿: ['Every segment', '每段定稿'],
   中英双语: ['Chinese + English', '中英双语'],
   原文: ['Original', '原文'],
   快速: ['Quick', '快速'],
@@ -186,8 +184,14 @@ Object.assign(optionNames, {
   '快速 · 0.35 秒': ['Fast · 0.35 s', '快速 · 0.35 秒'],
   '均衡 · 0.65 秒': ['Balanced · 0.65 s', '均衡 · 0.65 秒'],
   '稳妥 · 1.0 秒': ['Stable · 1.0 s', '稳妥 · 1.0 秒'],
-  不限时: ['Unlimited', '不限时'],
   服务默认: ['Service default', '服务默认'],
+  // Stored option codes (see app/option_values.py).
+  on: ['On', '开启'],
+  off: ['Off', '关闭'],
+  questions: ['Questions only', '仅疑问句'],
+  segments: ['Every segment', '每段定稿'],
+  unlimited: ['Unlimited', '不限时'],
+  service_default: ['Service default', '服务默认'],
 });
 const t = (text) => (language === 'zh' ? translations[text] || text : text);
 const label = (text) =>
@@ -638,9 +642,9 @@ function render(s) {
     s.microphone || '',
   );
   choose('asr_pause', ['快速 · 0.35 秒', '均衡 · 0.65 秒', '稳妥 · 1.0 秒'], s.options.asr_pause);
-  choose('incremental_context', ['开启', '关闭'], s.options.incremental_context);
-  choose('deadline', ['不限时', '120', '300', '600', '1800'], s.options.deadline);
-  choose('max_output', ['服务默认', '4096', '8192', '16384', '32768'], s.options.max_output);
+  choose('incremental_context', ['on', 'off'], s.options.incremental_context);
+  choose('deadline', ['unlimited', '120', '300', '600', '1800'], s.options.deadline);
+  choose('max_output', ['service_default', '4096', '8192', '16384', '32768'], s.options.max_output);
   const active = s.jobs.filter((j) => !j.done),
     jobSignature = JSON.stringify(active);
   if ($('active-jobs').dataset.signature !== jobSignature) {
@@ -726,8 +730,8 @@ function render(s) {
   $('translate-now').hidden = s.caption !== '中英双语';
   for (const id of ['answer', 'live-answer']) choose(id, readingLanguages, s.answer);
   for (const id of ['question_mode', 'live-mode']) choose(id, ['长问题', '快速问答'], s.options.question_mode);
-  for (const id of ['warm_context']) choose(id, ['开启', '关闭'], s.options[id]);
-  choose('speculate', ['仅疑问句', '每段定稿', '关闭'], s.options.speculate);
+  for (const id of ['warm_context']) choose(id, ['on', 'off'], s.options[id]);
+  choose('speculate', ['questions', 'segments', 'off'], s.options.speculate);
   $('key-field').hidden = s.cli;
   $('lm_base').closest('label').hidden = s.provider !== 'LM Studio';
   $('key').placeholder = s.has_key

@@ -1,7 +1,6 @@
 """Pause-based local speech segmentation; never silently drops queued speech."""
 
-from collections import deque
-import audioop
+from pcm import rms
 import queue
 import threading
 import time
@@ -44,7 +43,7 @@ class LiveTranscriber:
             state = self.sources.setdefault(
                 source, {'pre': b'', 'data': bytearray(), 'quiet': 0, 'stamp': '', 'generation': 0, 'preview_bytes': 0}
             )
-            voiced = audioop.rms(pcm, 2) >= self.threshold
+            voiced = rms(pcm) >= self.threshold
             if not state['data']:
                 if not voiced:
                     state['pre'] = (state['pre'] + pcm)[-int(self.rate * 0.3) * 2 :]

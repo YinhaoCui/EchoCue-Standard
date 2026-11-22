@@ -21,7 +21,7 @@ PRESENTATION_DEFAULTS = {
 def presentation_value(key, value):
     """Validate non-secret interface choices shared by loading and the web bridge."""
     if key == 'ui_theme':
-        if value == 'midnight':
+        if value == 'midnight':  # retired style: same layout as the light theme
             return 'workbench'
         if value not in ('classic', 'midnight', 'cosmic', 'workbench'):
             raise ValueError('Unknown interface style')
@@ -65,7 +65,7 @@ DEFAULT_OPTIONS = {
     'spare_session': option_values.OFF,
     'background_mode': 'frosted',
     'listen_transparency': '12',
-    'transcript_font_size': '21',
+    'transcript_font_size': '18',  # the answer leads; the transcript is context
     'answer_font_size': '21',
     'listen_layout': '',
     'listen_text_color': '#ffffff',

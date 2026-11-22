@@ -136,7 +136,7 @@ class AnswerRunner:
                 'timing',
                 {'context_prepare': model_started - prepared, 'model_start': max(0.0, model_started - clock['start'])},
             )
-            send('status', '开始回答；转录和其他回答继续进行…')
+            send('status', '正在回答…')
             providers.answer(
                 providers.AnswerRequest(
                     provider=provider,

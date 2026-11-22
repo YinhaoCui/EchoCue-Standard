@@ -2,26 +2,26 @@
 (() => {
   const enabled = () => document.body.dataset.theme === 'workbench';
   Object.assign(translations, {
-    'Workbench · Black Gold': '双轨工作台 · 黑金',
-    'Listening frost': '监听页磨砂度',
+    'Listening frost': '背景模糊',
+    'This session': '本次会话',
+    'When to answer': '回答时机',
+    'Text size': '字号',
+    Transcript: '转录',
+    'Capture full screen': '截取整个屏幕',
+    Stop: '停止',
     'Follow theme colors': '监听配色跟随主题',
-    'Dual-track Workbench': '双轨工作台',
     'Models & connections': '模型与连接',
     'Interface settings': '界面设置',
     'Usage & diagnostics': '用量与检测',
     'Style & language': '风格与语言',
     'Desktop effects': '桌面效果',
     'Text & colors': '文字与配色',
-    'Choose the application palette and display language.': '选择应用配色和显示语言。',
-    'Adjust desktop blur and transparency independently. Text stays sharp.': '独立调整桌面磨砂和透明度，文字保持清晰。',
-    'Follow the theme, or choose your own reading colors.': '使用主题配色，或单独调整阅读颜色与文字样式。',
     'Start with a template, then edit the prompt for this session.': '选择模板后可继续编辑提示词，应用后用于本次会话。',
     'Context & scenes': '上下文与场景',
     'Template library': '模板库',
     'All answers': '全部回答',
     'Back to live': '回到实时',
     'Return to listening': '返回监听',
-    'Choose a task above. Listening continues independently.': '在上方选择任务，实时转录会继续进行。',
     'Settings apply as you change them. Context drafts and shortcuts have their own Apply button.':
       '普通设置修改后即时保存；上下文草稿和快捷键需单独应用。',
     'No answer yet. Request an answer when you are ready.': '暂无回答，准备好后点击“回答”。',
@@ -138,25 +138,22 @@
     document.querySelector('#layout-menu .color-row'),
     ...document.querySelectorAll('#layout-menu [data-toggle]'),
   ];
-  const appearanceGroup = (title, description) => {
+  const appearanceGroup = (title) => {
     const group = make('section', 'interface-group'),
       heading = make('div', 'interface-group-heading');
-    heading.append(make('h3', '', title), make('p', '', description));
+    heading.append(make('h3', '', title));
     group.append(heading);
     appearance.append(group);
     return group;
   };
-  const styleGroup = appearanceGroup('Style & language', 'Choose the application palette and display language.');
+  const styleGroup = appearanceGroup('Style & language');
   styleGroup.append(document.querySelector('.appearance-controls'));
-  const effectsGroup = appearanceGroup(
-    'Desktop effects',
-    'Adjust desktop blur and transparency independently. Text stays sharp.',
-  );
+  const effectsGroup = appearanceGroup('Desktop effects');
   const effectsFields = make('div', 'interface-effects');
   effectsGroup.append(effectsFields);
   const frostSettings = $('settings-listen-frost').closest('.frost-controls');
   effectsFields.append($('settings-listen-frost').closest('label'));
-  const colorGroup = appearanceGroup('Text & colors', 'Follow the theme, or choose your own reading colors.');
+  const colorGroup = appearanceGroup('Text & colors');
   colorGroup.classList.add('interface-colors');
   colorGroup.append($('settings-theme-colors').closest('label'), listeningControls);
   frostSettings.remove();
@@ -174,7 +171,7 @@
   const scenes = $('scene-picker').closest('.context-section');
   const memory = $('context-history').closest('.context-memory');
   const disclosureStates = new Map();
-  const returnButton = make('button', 'quiet', 'Return to listening');
+  const returnButton = make('button', 'quiet workbench-return', 'Return to listening');
   returnButton.onclick = () => view('listen');
   $('prepare').before(returnButton);
   const hint = make(
@@ -194,12 +191,54 @@
   output.tabIndex = 0;
   output.setAttribute('role', 'tabpanel');
   const taskInfo = make('div', 'workbench-task-info');
-  const cancel = make('button', 'quiet', 'Cancel answers');
+  const cancel = make('button', 'quiet', 'Stop');
   cancel.onclick = () => command('cancel_job', { id: Number(selected) }).catch(() => {});
   const taskLabel = make('span');
   taskInfo.append(taskLabel, cancel);
   document.querySelector('.answer-panel .reading-heading').after(workbenchTabs, taskInfo);
   $('output').after(output);
+  // Listen screen: the bar keeps what is used mid-meeting; set-once controls live in the two menus.
+  const sessionGroup = make('div', 'menu-group menu-session');
+  const modeLabel = make('label', 'language-control');
+  modeLabel.append(make('span', '', 'When to answer'));
+  sessionGroup.append(make('h3', '', 'This session'));
+  $('more-menu').prepend(sessionGroup);
+  const sizeGroup = make('div', 'menu-group menu-sizes');
+  sizeGroup.append(make('h3', '', 'Text size'));
+  const sizeRows = {};
+  for (const [key, text] of [
+    ['transcript_font_size', 'Transcript'],
+    ['answer_font_size', 'Answer'],
+  ]) {
+    sizeRows[key] = make('div', 'size-row');
+    sizeRows[key].append(make('span', '', text));
+    sizeGroup.append(sizeRows[key]);
+  }
+  $('layout-menu').prepend(sizeGroup);
+  const captureAll = document.querySelector('.listen-toolbar [data-action="capture_screen"]');
+  const languageControls = [...document.querySelectorAll('.transcript-panel .language-control')];
+  const fontSteps = [...document.querySelectorAll('.reading-heading .font-step')];
+  function arrangeListen() {
+    const on = enabled();
+    const place = (el, parent, before) => {
+      if (!on) return restore(el);
+      move(el, parent);
+      if (before) before.before(el);
+    };
+    for (const el of languageControls) place(el, sessionGroup);
+    place($('live-mode'), modeLabel);
+    place(modeLabel, sessionGroup);
+    place(captureAll, sessionGroup);
+    for (const button of fontSteps) place(button, sizeRows[button.dataset.font]);
+    place($('text-answer-toggle'), $('context-toggle').parentElement, $('context-toggle'));
+    place($('model-badge'), document.querySelector('.answer-panel .reading-heading'));
+    if (on) {
+      captureAll.dataset.originalLabel ??= captureAll.dataset.i;
+      captureAll.dataset.i = 'Capture full screen';
+      captureAll.textContent = t(captureAll.dataset.i);
+    }
+    sessionGroup.hidden = sizeGroup.hidden = !on;
+  }
   const liveButton = make('button', 'workbench-back-live', 'Back to live');
   liveButton.onclick = () => {
     $('transcript').scrollTop = $('transcript').scrollHeight;
@@ -225,6 +264,9 @@
       const heading = document.querySelector('.intro h1');
       heading.dataset.i = sections[id];
       heading.textContent = t(sections[id]);
+      // A section whose own heading repeats the page title shows the title once.
+      const own = $(id).querySelector(':scope > h2');
+      if (own) own.classList.toggle('repeats-title', own.textContent.trim() === heading.textContent.trim());
       document.querySelector('.settings-content').scrollTop = 0;
       if (id === 'preferences') document.querySelector('#preferences details').open = true;
       if (id === 'context') move(contextApplyBar, $('settings-footer'));
@@ -253,7 +295,9 @@
     for (const el of appearanceItems) {
       if (document.body.dataset.view === 'settings')
         move(el, el.classList.contains('transparency-control') ? effectsFields : listeningControls);
-      else restore(el);
+      else if (enabled() && el.classList.contains('transparency-control')) {
+        move(el, sizeGroup);
+      } else restore(el);
     }
     const dock = enabled() && document.body.dataset.view === 'settings';
     if (dock !== contextDocked) {
@@ -276,6 +320,7 @@
     scheduleShape();
   }
   function themeChanged() {
+    arrangeListen();
     if (enabled()) {
       for (const child of [...$('context').children])
         if (child !== contextMain && child !== shelf && child !== templateBar) move(child, contextMain);
@@ -361,6 +406,7 @@
                 : 'Running'),
         ]),
       ];
+      workbenchTabs.dataset.single = items.length < 3 ? '1' : '0';
       workbenchTabs.replaceChildren(
         ...items.map(([id, text]) => {
           const button = make('button');
@@ -377,9 +423,8 @@
       output.setAttribute('aria-labelledby', 'answer-tab-' + selected);
     }
     const job = jobs.find((j) => String(j.id) === selected);
-    taskLabel.textContent = job
-      ? [job.provider, job.model, job.state].filter(Boolean).join(' · ')
-      : t('Choose a task above. Listening continues independently.');
+    taskLabel.textContent = job ? [job.provider, job.model, job.state].filter(Boolean).join(' · ') : '';
+    taskInfo.hidden = !job;
     cancel.hidden = !job || job.done;
     cancel.textContent = language === 'zh' ? '取消此任务' : 'Cancel this task';
     const text = job?.span ? s.output.slice(job.span[0], job.span[1]) : s.output;

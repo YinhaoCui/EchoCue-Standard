@@ -238,7 +238,7 @@ class ListenPageTests(unittest.TestCase):
         self.assertEqual(self.page.input_value('#context-instructions'), 'Keyboard input still works')
         self.page.click('#context-toggle')
         self.page.wait_for_function('window.__activationLayout?.mouse_only === true')
-        self.page.click('#listen button[data-view=settings]')
+        self.page.locator('button[data-view=settings]:visible').first.click()
         self.page.wait_for_function('window.__activationLayout?.mouse_only === false')
 
     def test_toolbar_menus_keep_no_activation_until_a_text_field_is_focused(self):
@@ -694,21 +694,21 @@ class ListenPageTests(unittest.TestCase):
 
     def test_save_apply_and_delete_preset(self):
         self.page.click('[data-font="transcript_font_size"][data-step="1"]')
-        self.wait_option('transcript_font_size', '22')
+        self.wait_option('transcript_font_size', '19')
         self.page.click('#layout-button')
         self.page.fill('#preset-name', 'Meeting')
         self.page.click('#preset-save')
         self.page.wait_for_selector('.preset-apply[data-preset="Meeting"]')
         saved = json.loads(self.bridge.option('listen_presets'))
         self.assertEqual(saved[0]['name'], 'Meeting')
-        self.assertEqual(saved[0]['values']['transcript_font_size'], '22')
+        self.assertEqual(saved[0]['values']['transcript_font_size'], '19')
         # A built-in preset changes the look; the saved one brings it back.
         self.page.click('.preset-apply[data-preset="Compact"]')
         self.wait_option('transcript_font_size', '16')
         self.assertEqual(self.bridge.option('listen_layout'), '56,140,0,0,0')
         self.page.click('#layout-button')
         self.page.click('.preset-apply[data-preset="Meeting"]')
-        self.wait_option('transcript_font_size', '22')
+        self.wait_option('transcript_font_size', '19')
         self.assertEqual(self.bridge.option('listen_layout'), '')
         self.page.click('#layout-button')
         self.page.click('.preset-row:has([data-preset="Meeting"]) .preset-delete')
@@ -994,7 +994,7 @@ class ListenPageTests(unittest.TestCase):
             self.bridge.state['language'] = 'zh'
         self.bridge.publish()
         self.page.wait_for_function("document.querySelector('#layout-button').textContent==='布局'")
-        self.assertEqual(self.page.text_content('#meeting-refinements summary'), '继续处理回答')
+        self.assertEqual(self.page.text_content('#meeting-refinements summary'), '追问与改写')
         self.assertEqual(self.page.text_content('#meeting-settings h2'), '会议辅助')
         self.page.click('#layout-button')
         self.assertEqual(self.page.text_content('#layout-reset'), '恢复默认布局')

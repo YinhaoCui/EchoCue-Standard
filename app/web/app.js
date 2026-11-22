@@ -21,7 +21,7 @@ const translations = {
   'Auto · prefer fast models': '自动 · 优先快速模型',
   'Same provider as answers': '与回答使用相同平台',
   'Independent of answers. Uses the lowest supported thinking level. API keys are shared with the selected provider settings.':
-    '独立于回答模型，自动使用最低支持的思考档；API Key 沿用所选平台的配置。',
+    '字幕翻译可以单独选一个更快的模型，密钥与该平台共用。',
   Transparency: '透明度',
   Taskbar: '任务栏',
   'Tray icon': '托盘图标',
@@ -35,11 +35,11 @@ const translations = {
   'Edit transcript': '编辑转录',
   Vocabulary: '术语词典',
   'Export session': '导出会话',
-  'Transcript finalization': '转录定稿速度',
+  'Transcript finalization': '断句速度',
   'Incremental context': '增量上下文',
   'Request timeout': '请求超时',
   'Output tokens': '输出 Token',
-  'Cancel answers': '取消回答',
+  'Cancel answers': '停止',
   'Ask with text': '文字提问',
   'Translate now': '立刻翻译',
   'Your question': '输入问题',
@@ -55,10 +55,8 @@ const translations = {
   Preferences: '偏好',
   Shortcuts: '快捷键',
   'Model speed test': '模型测速',
-  'Your workspace, ready when you are': '配置好，即可开始',
   'Set up your session': '准备你的会话',
   'AI model': '回答模型',
-  'Choose how your answers take shape.': '选择回答模型和思考方式。',
   Provider: '平台',
   Model: '模型',
   'Refresh models': '刷新模型',
@@ -69,7 +67,6 @@ const translations = {
   Thinking: '要求思考',
   'Answer style': '回答方式',
   'Audio & transcription': '音频与转录',
-  'Separate listening from answering.': '转录与回答独立设置。',
   'Audio source': '声音来源',
   'Playback device': '播放设备',
   'Transcription engine': '转录引擎',
@@ -134,7 +131,9 @@ const translations = {
   'Delete preset': '删除预设',
   'Interface style': '界面风格',
   'Interface language': '界面语言',
-  'Classic Glass': '经典玻璃',
+  'Classic floating panels': '经典浮窗',
+  Light: '浅色',
+  Dark: '深色',
   'Midnight Studio': '深色工作台',
   'Cosmic Gravity': '宇宙引力',
   'Default model': '默认模型',
@@ -153,8 +152,10 @@ const translations = {
   'Create an answer': '生成回答',
   'Always on top': '窗口置顶',
   'Start / pause transcription': '开始／暂停转录',
-  'Enter combinations such as Ctrl+Alt+P or Ctrl+Shift+F8. Changes apply after saving.':
-    '填写 Ctrl+Alt+P 或 Ctrl+Shift+F8 等组合，保存后生效。',
+  'During a meeting': '会议中',
+  'Not set': '未设置',
+  'Click a field and press the keys. Backspace clears it; an empty field is not used.':
+    '点一下输入框，直接按下按键。按退格键清空；留空的功能不使用快捷键。',
 };
 const optionNames = {
   'DeepL (built-in)': ['DeepL (built-in)', 'DeepL（内置免 Key）'],
@@ -163,7 +164,7 @@ const optionNames = {
   电脑: ['System audio', '电脑'],
   麦克风: ['Microphone', '麦克风'],
   '电脑 + 麦克风': ['System + microphone', '电脑 + 麦克风'],
-  长问题: ['Long question', '长问题'],
+  长问题: ['When I press Answer', '我点回答时'],
   快速问答: ['Quick Q&A', '快速问答'],
   开启: ['On', '开启'],
   关闭: ['Off', '关闭'],
@@ -258,7 +259,7 @@ function midnightColumns() {
 function applyTheme(value) {
   const choice = ['classic', 'cosmic', 'workbench'].includes(value) ? value : 'workbench';
   const theme = choice === 'cosmic' ? 'workbench' : choice,
-    palette = choice === 'cosmic' ? 'gold' : 'light';
+    palette = choice === 'cosmic' ? 'dark' : 'light';
   for (const id of ['ui_theme', 'live-ui-theme']) if ($(id)?.options.length) $(id).value = choice;
   if (document.body.dataset.theme === theme && document.body.dataset.palette === palette) return;
   document.body.dataset.theme = theme;
@@ -272,12 +273,53 @@ function applyTheme(value) {
     scheduleShape();
   });
 }
+const CUE_HEADER = /^\[(\d{2}:\d{2}:\d{2})(?: ([^\]·]+?))?(?: · ([^\]]+))?\]$/;
+function renderCueSheet(el, text) {
+  // The transcript as a script: time in a narrow left column, speech beside it.
+  // Speech is spoken text, so it is shown as written, never parsed as Markdown.
+  // Only rows from the first changed block onwards are rebuilt.
+  const old = el._mdBlocks || [],
+    blocks = text.split(/\n{2,}/).filter((block) => block.trim());
+  if (!el._mdBlocks) el.textContent = '';
+  let same = 0;
+  while (same < old.length && same < blocks.length && old[same].key === blocks[same]) same++;
+  for (const gone of old.slice(same)) gone.node.remove();
+  const rows = old.slice(0, same);
+  for (const block of blocks.slice(same)) {
+    const lines = block.split('\n'),
+      header = CUE_HEADER.exec(lines[0].trim()),
+      node = document.createElement('div'),
+      time = document.createElement('div'),
+      speech = document.createElement('div');
+    node.className = header ? 'cue' : 'cue cue-live';
+    time.className = 'cue-time';
+    speech.className = 'cue-text';
+    if (header) {
+      time.textContent = header[1].slice(0, 5);
+      time.title = header[1];
+      const who = [header[2], header[3]].filter(Boolean).map((name) => label(name));
+      if (who.length) {
+        const name = document.createElement('span');
+        name.className = 'cue-who';
+        name.textContent = who.join(' · ');
+        time.appendChild(name);
+      }
+    }
+    speech.textContent = (header ? lines.slice(1) : lines).join('\n');
+    node.append(time, speech);
+    el.appendChild(node);
+    rows.push({ key: block, node });
+  }
+  el._mdBlocks = rows;
+  el._mdSource = text;
+}
 function textStream(id, value) {
-  // Both panels show Markdown; renderMarkdown redraws only the blocks that changed.
+  // Answers are Markdown, the transcript is a cue sheet; both redraw only what changed.
   const el = $(id);
   if (el._mdSource === value) return;
   const follow = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
-  renderMarkdown(el, value || '');
+  if (id === 'transcript') renderCueSheet(el, value || '');
+  else renderMarkdown(el, value || '');
   if (follow) el.scrollTop = el.scrollHeight;
 }
 function attachments(id, images) {
@@ -615,9 +657,9 @@ function render(s) {
   if (language !== s.language) setLanguage(s.language);
   if (!pending.has('ui_theme')) applyTheme(s.options.ui_theme || 'workbench');
   const styles = [
-    { value: 'workbench', text: t('Dual-track Workbench') },
-    { value: 'cosmic', text: t('Workbench · Black Gold') },
-    { value: 'classic', text: t('Classic Glass') },
+    { value: 'workbench', text: t('Light') },
+    { value: 'cosmic', text: t('Dark') },
+    { value: 'classic', text: t('Classic floating panels') },
   ];
   for (const id of ['ui_theme', 'live-ui-theme'])
     choose(id, styles, pending.get('ui_theme') || s.options.ui_theme || 'workbench');
@@ -748,11 +790,18 @@ function render(s) {
   $('live-label').textContent = t(s.listening ? 'Listening' : 'Ready');
   $('pause').textContent = t(s.listening ? 'Pause' : 'Start transcription');
   $('pause').dataset.icon = s.listening ? 'pause-fill' : 'play-fill';
+  document.body.dataset.listening = s.listening ? '1' : '0';
+  document.body.dataset.busy = s.jobs.some((j) => !j.done) ? '1' : '0';
+  document.body.dataset.notice = Date.now() > noticeUntil ? '0' : '1';
   $('prepare').disabled = s.preparing;
-  if (Date.now() > noticeUntil) $('status').textContent = t(s.status);
+  // The header already shows the idle or listening state; the status bar is for messages.
+  if (Date.now() > noticeUntil) {
+    const message = t(s.status);
+    $('status').textContent = message === $('live-label').textContent ? '' : message;
+  }
   $('model-badge').textContent = label(s.provider) + ' / ' + (s.model || 'Default');
-  $('job-count').textContent =
-    s.jobs.filter((j) => !j.done).length + (language === 'zh' ? ' 个回答进行中' : ' active answers');
+  const running = s.jobs.filter((j) => !j.done).length;
+  $('job-count').textContent = running ? running + (language === 'zh' ? ' 个回答进行中' : ' active answers') : '';
   $('usage').textContent = language === 'en' ? s.usage.replaceAll('本次', 'session') : s.usage;
   attachments('settings-attachments', s.images);
   attachments('live-attachments', s.images);
@@ -998,16 +1047,45 @@ hotkeyHeading.dataset.i = 'Global shortcuts';
 hotkeyHeading.textContent = t('Global shortcuts');
 hotkeySection.append(hotkeyHeading);
 const hotkeyHelp = document.createElement('p');
-hotkeyHelp.dataset.i = 'Enter combinations such as Ctrl+Alt+P or Ctrl+Shift+F8. Changes apply after saving.';
+hotkeyHelp.dataset.i = 'Click a field and press the keys. Backspace clears it; an empty field is not used.';
 hotkeyHelp.textContent = t(hotkeyHelp.dataset.i);
 hotkeySection.append(hotkeyHelp);
 const hotkeyLabels = {
   hotkey: 'Create an answer',
-  topmost: 'Always on top',
   transcription: 'Start / pause transcription',
   capture_screen: 'Capture screen',
+  topmost: 'Always on top',
 };
+const hotkeyGroups = { hotkey: 'During a meeting', topmost: 'Window' };
+function pressedShortcut(event) {
+  // The physical key, so the result does not depend on the input method or Shift.
+  const code = event.code || '';
+  const main = /^Key[A-Z]$/.test(code)
+    ? code.slice(3)
+    : /^Digit\d$/.test(code)
+      ? code.slice(5)
+      : /^F\d{1,2}$/.test(code) || code === 'Space'
+        ? code
+        : '';
+  if (!main) return '';
+  const modifiers = [
+    event.ctrlKey && 'Ctrl',
+    event.altKey && 'Alt',
+    event.shiftKey && 'Shift',
+    event.metaKey && 'Win',
+  ].filter(Boolean);
+  // Letters and digits alone stay ordinary typing; a function key may stand alone.
+  if (!modifiers.length && !main.startsWith('F')) return '';
+  return [...modifiers, main].join('+');
+}
 for (const [action, title] of Object.entries(hotkeyLabels)) {
+  if (hotkeyGroups[action]) {
+    const group = document.createElement('h3');
+    group.className = 'hotkey-group';
+    group.dataset.i = hotkeyGroups[action];
+    group.textContent = t(group.dataset.i);
+    hotkeySection.append(group);
+  }
   const label = document.createElement('label'),
     name = document.createElement('span'),
     input = document.createElement('input');
@@ -1016,8 +1094,23 @@ for (const [action, title] of Object.entries(hotkeyLabels)) {
   input.id = 'hotkey-' + action;
   input.dataset.hotkey = action;
   input.autocomplete = 'off';
+  input.placeholder = t('Not set');
+  input.dataset.placeholderI = 'Not set';
   input.spellcheck = false;
   input.addEventListener('input', () => {
+    hotkeyDraft = true;
+  });
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Backspace' || event.key === 'Delete') {
+      event.preventDefault();
+      input.value = '';
+      hotkeyDraft = true;
+      return;
+    }
+    const shortcut = pressedShortcut(event);
+    if (!shortcut) return;
+    event.preventDefault();
+    input.value = shortcut;
     hotkeyDraft = true;
   });
   label.append(name, input);
@@ -1119,9 +1212,9 @@ const iconRules = {
   // Scope to buttons: <body data-view> must never receive an icon or inline-flex.
   'button[data-view="settings"]': 'gear',
   'button[data-view="listen"]': 'headphones',
-  '[data-section="models"],#models h2': 'cpu',
-  '[data-section="audio"],#audio h2': 'mic',
-  '[data-section="context"],#context h2': 'folder2-open',
+  '[data-section="models"]': 'cpu',
+  '[data-section="audio"]': 'mic',
+  '[data-section="context"]': 'folder2-open',
   '[data-section="preferences"]': 'sliders',
   '[data-section="meeting-settings"]': 'chat-square-text',
   '[data-section="usage-settings"]': 'speedometer2',
@@ -1133,7 +1226,7 @@ const iconRules = {
   '[data-action="import"]': 'file-earmark-plus',
   '[data-action="analyze"]': 'search',
   '[data-action="refresh"]': 'arrow-clockwise',
-  '[data-action="usage"],.usage-card h2': 'speedometer2',
+  '[data-action="usage"]': 'speedometer2',
   '[data-action="save_context"]': 'shield-check',
   '[data-action="screenshots"],#context-toggle': 'folder2-open',
   '[data-copy]': 'clipboard',
@@ -1145,8 +1238,6 @@ const iconRules = {
   '[data-native="minimize"]': 'dash',
   '[data-native="maximize"]': 'square',
   '[data-action="cancel"]': 'x-lg',
-  '.answer-panel h2': 'chat-square-text',
-  '.transcript-panel h2': 'soundwave',
 };
 for (const [selector, icon] of Object.entries(iconRules))
   document.querySelectorAll(selector).forEach((el) => (el.dataset.icon = icon));
@@ -1635,19 +1726,19 @@ function applyColor(id, value) {
   let hex = /^#[0-9a-f]{6}$/i.test(value || '') ? value.toLowerCase() : COLOR_DEFAULTS[id];
   const follow = (pending.get('listen_theme_colors') ?? current?.options?.listen_theme_colors ?? '1') === '1';
   if (follow) {
-    const light = document.body.dataset.theme === 'workbench' && document.body.dataset.palette !== 'gold';
+    const light = document.body.dataset.theme === 'workbench' && document.body.dataset.palette !== 'dark';
     hex =
       id === 'listen_text_color'
         ? light
-          ? '#202c3d'
+          ? '#1f1e1c'
           : document.body.dataset.theme === 'classic'
             ? '#ffffff'
-            : '#f0e9da'
+            : '#ecebe7'
         : light
-          ? '#ffffff'
+          ? '#fbfaf8'
           : document.body.dataset.theme === 'classic'
             ? '#213953'
-            : '#151619';
+            : '#1b1b1a';
   }
   $(id).value = hex;
   const root = document.documentElement.style;
@@ -1708,7 +1799,7 @@ for (const id of ['listen_text_color', 'listen_panel_color'])
 // leaves out fall back to the defaults, so "Default" doubles as a full reset.
 const LAYOUT_DEFAULTS = {
   listen_transparency: '12',
-  transcript_font_size: '21',
+  transcript_font_size: '18',
   answer_font_size: '21',
   listen_layout: '',
   listen_text_color: '#ffffff',

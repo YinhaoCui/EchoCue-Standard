@@ -12,9 +12,9 @@
  <main id="settings" class="glass settings-page">
   <aside><button class="side active" data-section="models" data-i="Models">Models</button><button class="side" data-section="audio" data-i="Audio">Audio</button><button class="side" data-section="meeting-settings" data-i="Meeting assistance">Meeting assistance</button><button class="side" data-section="context" data-i="Context">Context</button><button class="side" data-section="preferences" data-i="Preferences">Preferences</button><button class="side" data-section="usage-settings" data-i="Observed usage">Observed usage</button><div class="side-bottom"><button data-action="hotkeys" data-i="Shortcuts">Shortcuts</button><button data-action="speed" data-i="Model speed test">Model speed test</button><button data-action="check_apis" data-i="Check APIs">Check APIs</button></div></aside>
   <div class="settings-body"><div class="settings-content">
-   <div class="intro"><div><p class="eyebrow" data-i="Your workspace, ready when you are">Your workspace, ready when you are</p><h1 data-i="Set up your session">Set up your session</h1></div><div class="appearance-controls"><label><span data-i="Interface style">Interface style</span><select id="ui_theme" aria-label="Interface style"></select></label><select id="language" aria-label="Interface language"><option value="en">English</option><option value="zh">中文</option></select></div></div>
+   <div class="intro"><div><h1 data-i="Set up your session">Set up your session</h1></div><div class="appearance-controls"><label><span data-i="Interface style">Interface style</span><select id="ui_theme" aria-label="Interface style"></select></label><select id="language" aria-label="Interface language"><option value="en">English</option><option value="zh">中文</option></select></div></div>
    <div class="settings-grid">
-    <section class="card" id="models"><h2 data-i="AI model">AI model</h2><p data-i="Choose how your answers take shape.">Choose how your answers take shape.</p>
+    <section class="card" id="models"><h2 data-i="AI model">AI model</h2>
      <label><span data-i="Provider">Provider</span><select id="provider"></select></label>
      <label><span data-i="Model">Model</span><select id="model-picker"></select></label>
      <label><span data-i="Model ID">Model ID</span><input id="model" placeholder="Default model"></label>
@@ -25,7 +25,7 @@
      <label><span data-i="Thinking">Thinking</span><select id="thinking_policy"></select></label>
      <label><span data-i="Answer style">Answer style</span><select id="answer_mode"></select></label>
     </section>
-    <section class="card" id="audio"><h2 data-i="Audio & transcription">Audio & transcription</h2><p data-i="Separate listening from answering.">Separate listening from answering.</p>
+    <section class="card" id="audio"><h2 data-i="Audio & transcription">Audio & transcription</h2>
      <details class="settings-options" open id="caption-model-settings"><summary data-i="Caption translation model">Caption translation model</summary>
       <p class="hint" id="caption-llm-hint" data-i="Independent of answers. Uses the lowest supported thinking level. API keys are shared with the selected provider settings.">Independent of answers. Uses the lowest supported thinking level. API keys are shared with the selected provider settings.</p>
       <label><span data-i="Translation provider">Translation provider</span><select id="caption_provider"></select></label>

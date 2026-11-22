@@ -2,6 +2,13 @@
 
 ## 1.0.4
 
+- Keep seven controls on the listening bar (Pause, Answer, Capture, Type a question, Context, Pin, View, More). Languages, answer timing and full-screen capture move into More; text size and transparency into View. Pane headers become captions, copy appears on hover, and Stop shows only while an answer runs.
+- Set shortcuts by pressing them: click a field and press the keys. A function key may be used on its own, and an empty field leaves that action without a shortcut. Click-through keeps requiring a Restore interaction shortcut.
+- Default the transcript to 18px beside a 21px answer for new settings, show times as HH:MM, and use 32px settings controls on one form grid.
+- Redesign the Light and Dark interface styles: neutral paper-and-ink colors, one filled action per screen, flat panels, and red reserved for "transcription is running". Dark replaces the Black Gold palette; Classic floating panels is unchanged apart from flatter controls.
+- Show the transcript as a cue sheet: time in a margin column, speech shown as spoken (no Markdown), earlier lines stepped back, and only changed rows redrawn.
+- Simplify settings: one title per page, no cards, no decorative heading icons or taglines; the status bar appears only when it has something to say.
+- Remove about 950 lines of styles for retired themes and take radii, type sizes, weights and palette colors from shared tokens.
 - Show live transcript drafts and streamed answer text sooner: worker events now reach the page in about 30 ms (median) instead of about 80 ms, and at most about 50 ms instead of about 150 ms.
 - List each model once and in one order everywhere: effort variants run low to high, the newest version leads its family, and Claude Code aliases no longer duplicate their resolved model IDs.
 - Write a local diagnostic log to `data/logs/` with API keys redacted, including uncaught errors.

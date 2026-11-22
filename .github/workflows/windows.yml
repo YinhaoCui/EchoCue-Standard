@@ -37,6 +37,7 @@ jobs:
           python -m ruff check .
           python -m ruff format --check .
           npx --yes prettier@3.6.2 --check "app/web/*.js" "app/web/*.css"
+          Get-ChildItem app/web/*.js | ForEach-Object { node --check $_.FullName; if ($LASTEXITCODE -ne 0) { throw "Syntax error in $($_.Name)" } }
       - name: Install pinned dependencies
         run: |
           python -m pip install --only-binary=:all: --no-binary=proxy_tools --target vendor -r requirements.txt

@@ -3,7 +3,7 @@
 ## 1.0.4
 
 - Keep seven controls on the listening bar (Pause, Answer, Capture, Type a question, Context, Pin, View, More). Languages, answer timing and full-screen capture move into More; text size and transparency into View. Pane headers become captions, copy appears on hover, and Stop shows only while an answer runs.
-- Set shortcuts by pressing them: click a field and press the keys. A function key may be used on its own, and an empty field leaves that action without a shortcut. Click-through keeps requiring a Restore interaction shortcut.
+- Set shortcuts by pressing them: click a field and press the keys. A function key may be used on its own, and an empty field leaves that action without a shortcut.
 - Default the transcript to 18px beside a 21px answer for new settings, show times as HH:MM, and use 32px settings controls on one form grid.
 - Redesign the Light and Dark interface styles: neutral paper-and-ink colors, one filled action per screen, flat panels, and red reserved for "transcription is running". Dark replaces the Black Gold palette; Classic floating panels is unchanged apart from flatter controls.
 - Show the transcript as a cue sheet: time in a margin column, speech shown as spoken (no Markdown), earlier lines stepped back, and only changed rows redrawn.

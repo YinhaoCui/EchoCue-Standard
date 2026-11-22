@@ -1,5 +1,6 @@
 """Exercise the real workbench against the existing isolated command bridge."""
 
+import time
 import unittest
 from pathlib import Path
 import test_listen_page as listen
@@ -114,9 +115,19 @@ class WorkbenchTests(unittest.TestCase):
         self.page.wait_for_function("document.querySelector('#hotkey-note-hotkey').textContent === ''")
         self.assertEqual(field.get_attribute('aria-invalid'), 'false')
         self.page.locator('#hotkey-topmost').focus()
-        with self.bridge.lock:
-            recording = [c['value'] for c in self.bridge.commands if c.get('action') == 'hotkey_recording']
-        self.assertEqual(recording[:3], [True, False, True])
+        self.page.locator('#hotkey-hotkey').focus()
+        self.page.locator('#hotkey-topmost').focus()
+
+        def recording():
+            with self.bridge.lock:
+                return [c['value'] for c in self.bridge.commands if c.get('action') == 'hotkey_recording']
+
+        # Commands are sent one at a time, so they arrive in the order the focus moved.
+        expected = [True, False, True, False, True, False, True]
+        deadline = time.monotonic() + 10
+        while len(recording()) < len(expected) and time.monotonic() < deadline:
+            self.page.wait_for_timeout(50)
+        self.assertEqual(recording(), expected)
         # A saved shortcut that could not be registered is marked on its own field.
         self.page.click('#hotkeys-save')
         self.page.wait_for_function("current.hotkeys.hotkey === 'Ctrl+Shift+K'")

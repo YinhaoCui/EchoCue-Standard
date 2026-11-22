@@ -1057,6 +1057,11 @@ const hotkeyLabels = {
   topmost: 'Always on top',
 };
 const hotkeyGroups = { hotkey: 'During a meeting', topmost: 'Window' };
+let hotkeyRecording = Promise.resolve();
+function recordingHotkey(value) {
+  // One at a time: a late "true" overtaking the final "false" would leave the shortcuts released.
+  hotkeyRecording = hotkeyRecording.then(() => command('hotkey_recording', { value }).catch(() => {}));
+}
 function pressedShortcut(event) {
   // The physical key, so the result does not depend on the input method or Shift.
   const code = event.code || '';
@@ -1107,8 +1112,8 @@ for (const [action, title] of Object.entries(hotkeyLabels)) {
   });
   input.addEventListener('change', () => checkHotkey(input));
   // The app lets go of its shortcuts while one is recorded, so a shortcut already in use can be pressed.
-  input.addEventListener('focus', () => command('hotkey_recording', { value: true }).catch(() => {}));
-  input.addEventListener('blur', () => command('hotkey_recording', { value: false }).catch(() => {}));
+  input.addEventListener('focus', () => recordingHotkey(true));
+  input.addEventListener('blur', () => recordingHotkey(false));
   input.addEventListener('keydown', (event) => {
     if (event.key === 'Backspace' || event.key === 'Delete') {
       event.preventDefault();

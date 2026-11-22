@@ -1088,7 +1088,11 @@ for (const [action, title] of Object.entries(hotkeyLabels)) {
   }
   const label = document.createElement('label'),
     name = document.createElement('span'),
-    input = document.createElement('input');
+    input = document.createElement('input'),
+    note = document.createElement('small');
+  note.id = 'hotkey-note-' + action;
+  note.className = 'hotkey-note';
+  note.setAttribute('role', 'status');
   name.dataset.i = title;
   name.textContent = t(title);
   input.id = 'hotkey-' + action;
@@ -1099,12 +1103,18 @@ for (const [action, title] of Object.entries(hotkeyLabels)) {
   input.spellcheck = false;
   input.addEventListener('input', () => {
     hotkeyDraft = true;
+    hotkeyNotes(current);
   });
+  input.addEventListener('change', () => checkHotkey(input));
+  // The app lets go of its shortcuts while one is recorded, so a shortcut already in use can be pressed.
+  input.addEventListener('focus', () => command('hotkey_recording', { value: true }).catch(() => {}));
+  input.addEventListener('blur', () => command('hotkey_recording', { value: false }).catch(() => {}));
   input.addEventListener('keydown', (event) => {
     if (event.key === 'Backspace' || event.key === 'Delete') {
       event.preventDefault();
       input.value = '';
       hotkeyDraft = true;
+      checkHotkey(input);
       return;
     }
     const shortcut = pressedShortcut(event);
@@ -1112,8 +1122,9 @@ for (const [action, title] of Object.entries(hotkeyLabels)) {
     event.preventDefault();
     input.value = shortcut;
     hotkeyDraft = true;
+    checkHotkey(input);
   });
-  label.append(name, input);
+  label.append(name, input, note);
   hotkeySection.append(label);
 }
 const hotkeyStatus = document.createElement('p');
@@ -1160,11 +1171,51 @@ function goToShortcuts() {
       .forEach((el) => el.classList.toggle('active', el.dataset.section === 'shortcuts'));
   });
 }
+const hotkeyChecks = {};
+function checkHotkey(input) {
+  // Ask whether another program holds the shortcut; the answer arrives in the state feed.
+  const action = input.dataset.hotkey,
+    value = input.value.trim();
+  delete hotkeyChecks[action];
+  if (value) {
+    const id = crypto.randomUUID();
+    hotkeyChecks[action] = { id, value, taken: false };
+    command('check_hotkey', { id, value }).catch(() => {});
+  }
+  hotkeyNotes(current);
+}
+function hotkeyNotes(s) {
+  const inputs = [...document.querySelectorAll('[data-hotkey]')],
+    answer = s?.hotkey_check,
+    failed = s?.hotkey_failed || [];
+  for (const check of Object.values(hotkeyChecks)) if (answer && check.id === answer.id) check.taken = answer.taken;
+  for (const input of inputs) {
+    const action = input.dataset.hotkey,
+      value = input.value.trim().toLowerCase(),
+      twin = value && inputs.find((other) => other !== input && other.value.trim().toLowerCase() === value),
+      check = hotkeyChecks[action],
+      saved = (s?.hotkeys?.[action] || '').toLowerCase(),
+      taken =
+        value &&
+        ((check && check.taken && check.value.toLowerCase() === value) || (value === saved && failed.includes(action)));
+    let note = '';
+    if (twin) {
+      const name = t(hotkeyLabels[twin.dataset.hotkey]);
+      note = language === 'zh' ? '与“' + name + '”相同，请换一个。' : 'Same as ' + name + '. Choose another.';
+    } else if (taken) {
+      note =
+        language === 'zh' ? '已被其他程序占用，可能不会生效。' : 'Already used by another program; it may not work.';
+    }
+    $('hotkey-note-' + action).textContent = note;
+    input.setAttribute('aria-invalid', note ? 'true' : 'false');
+  }
+}
 function renderHotkeys(s) {
   for (const input of document.querySelectorAll('[data-hotkey]')) {
     if (!hotkeyDraft && !hotkeyBusy) input.value = s.hotkeys?.[input.dataset.hotkey] || '';
     input.disabled = hotkeyBusy;
   }
+  hotkeyNotes(s);
   $('hotkey-status').textContent = t(s.hotkey_status || '');
   $('hotkeys-save').disabled = $('hotkeys-default').disabled = hotkeyBusy;
 }
@@ -1172,6 +1223,7 @@ $('hotkeys-default').onclick = () => {
   for (const input of document.querySelectorAll('[data-hotkey]'))
     input.value = current?.hotkey_defaults?.[input.dataset.hotkey] || '';
   hotkeyDraft = true;
+  for (const input of document.querySelectorAll('[data-hotkey]')) checkHotkey(input);
   $('hotkey-edit-status').textContent =
     language === 'zh' ? '默认值已载入，保存后生效。' : 'Defaults loaded. Save to apply them.';
 };
@@ -1197,6 +1249,7 @@ $('hotkeys-save').onclick = async () => {
     }
     if (!current.hotkey_result.ok) throw Error(current.hotkey_result.error);
     hotkeyDraft = false;
+    for (const action of Object.keys(hotkeyChecks)) delete hotkeyChecks[action];
     $('hotkey-edit-status').textContent =
       language === 'zh' ? '设置已保存，注册结果见上方。' : 'Settings saved. Registration status is shown above.';
   } catch (error) {

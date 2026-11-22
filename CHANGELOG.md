@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.5
+
+- Report shortcut conflicts while binding: a field says at once when its shortcut is the same as another action's or is already held by another program, and a saved shortcut that could not be registered is marked on its own field.
+- Release the app's shortcuts while a shortcut field has focus, so a shortcut already in use can be pressed to record it instead of running its action.
+
 ## 1.0.4
 
 - Keep seven controls on the listening bar (Pause, Answer, Capture, Type a question, Context, Pin, View, More). Languages, answer timing and full-screen capture move into More; text size and transparency into View. Pane headers become captions, copy appears on hover, and Stop shows only while an answer runs.

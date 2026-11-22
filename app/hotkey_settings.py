@@ -26,6 +26,7 @@ KEYS = {
     **{'F' + str(k): 111 + k for k in range(1, 25)},
 }
 MODIFIERS = {'Ctrl': 2, 'Alt': 1, 'Shift': 4, 'Win': 8}
+PROBE_ID = 0x4410
 
 
 def parse(value):
@@ -64,6 +65,21 @@ def validate(values):
     return result
 
 
+def taken_elsewhere(value, own=()):
+    """True when another program already holds this shortcut.
+
+    Shortcuts this app uses are skipped: the page reports those as duplicates.
+    """
+    label, modifiers, key = parse(value)
+    if label in own:
+        return False
+    api = ctypes.windll.user32
+    if api.RegisterHotKey(None, PROBE_ID, modifiers, key):
+        api.UnregisterHotKey(None, PROBE_ID)
+        return False
+    return True
+
+
 class HotkeySettings:
     def init_hotkeys(self):
         try:
@@ -72,6 +88,20 @@ class HotkeySettings:
             self.hotkeys = dict(DEFAULTS)
         self.hotkey_registration_note = tk.StringVar(value='等待快捷键注册')
         self.hotkey_thread_id = None
+        self.hotkey_failed = []
+        self.hotkeys_paused = False
+
+    def pause_hotkeys(self, paused):
+        """Release the shortcuts while the page records one.
+
+        Pressing a shortcut that is in use then reaches the field instead of running its action.
+        """
+        paused = bool(paused)
+        if paused == self.hotkeys_paused:
+            return
+        self.hotkeys_paused = paused
+        if self.hotkey_thread_id:
+            ctypes.windll.user32.PostThreadMessageW(self.hotkey_thread_id, 0x8001, 0, 0)
 
     def shortcut(self, action):
         return getattr(self, 'hotkeys', DEFAULTS).get(action, DEFAULTS[action])
@@ -101,7 +131,10 @@ class HotkeySettings:
             for key in registered:
                 api.UnregisterHotKey(None, key)
             registered.clear()
+            if self.hotkeys_paused:
+                return
             failed = []
+            failed_actions = []
             snapshot = dict(self.hotkeys)
             for index, action in enumerate(DEFAULTS):
                 if not snapshot[action]:
@@ -112,6 +145,8 @@ class HotkeySettings:
                     registered[identity] = action
                 else:
                     failed.append(LABELS[action] + ' ' + label)
+                    failed_actions.append(action)
+            self.hotkey_failed = failed_actions
             self.events.put(
                 (
                     'hotkey_status',

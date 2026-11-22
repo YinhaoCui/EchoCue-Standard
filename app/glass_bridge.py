@@ -14,7 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from state_feed import StateFeed
 from prompt_templates import builtin_prompts, templates_with_writing_rules
-from hotkey_settings import DEFAULTS as HOTKEY_DEFAULTS
+from hotkey_settings import DEFAULTS as HOTKEY_DEFAULTS, taken_elsewhere
 
 ASSETS = Path(__file__).with_name('web')
 FONT_RANGE = (12, 40)
@@ -323,6 +323,8 @@ class GlassBridge:
             hotkey_defaults=dict(HOTKEY_DEFAULTS),
             hotkey_status=a.locale.t(a.hotkey_registration_note.get()),
             hotkey_result=getattr(self, 'hotkey_result', None),
+            hotkey_check=getattr(self, 'hotkey_check', None),
+            hotkey_failed=list(a.hotkey_failed),
             navigation_request=getattr(self, 'navigation_request', None),
             instructions=a.instructions.get(),
             answer_mode=a.answer_mode.get(),
@@ -526,6 +528,14 @@ class GlassBridge:
                 self.hotkey_result = dict(id=data.get('id'), ok=True)
             except (ValueError, TypeError, AttributeError) as exc:
                 self.hotkey_result = dict(id=data.get('id'), ok=False, error=a.locale.t(str(exc)))
+        elif action == 'check_hotkey':
+            try:
+                taken = taken_elsewhere(str(data.get('value', '')), a.hotkeys.values())
+            except ValueError:
+                taken = False  # an invalid shortcut is reported when it is saved
+            self.hotkey_check = dict(id=data.get('id'), taken=taken)
+        elif action == 'hotkey_recording':
+            a.pause_hotkeys(data.get('value'))
         elif action == 'apply_context':
             # Return a correlated outcome in the state feed; HTTP 202 only queues work.
             try:

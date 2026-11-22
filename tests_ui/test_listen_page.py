@@ -549,6 +549,10 @@ class ListenPageTests(unittest.TestCase):
                     self.assertEqual(metrics['overflow'], 'scroll')
                     self.assertGreaterEqual(metrics['gutter'], 10)
                     self.assertTrue(metrics['scrollable'])
+                    # Let the native thumb repaint after resetting scrollTop.
+                    pane.evaluate(
+                        'el => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))'
+                    )
                     box = pane.bounding_box()
                     self.page.mouse.move(
                         box['x'] + box['width'] - metrics['gutter'] / 2, box['y'] + metrics['gutter'] + 8
@@ -558,7 +562,13 @@ class ListenPageTests(unittest.TestCase):
                         box['x'] + box['width'] - metrics['gutter'] / 2, box['y'] + min(90, box['height'] - 20), steps=8
                     )
                     self.page.mouse.up()
-                    self.assertGreater(pane.evaluate('el => el.scrollTop'), 0)
+                    self.page.wait_for_function(
+                        '(selector) => document.querySelector(selector).scrollTop > 0', arg=selector
+                    )
+                    # Native scrollbar commits can arrive after the pointer-up response.
+                    pane.evaluate(
+                        'el => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))'
+                    )
                     pane.evaluate('el => el.scrollTop=120')
             with self.bridge.lock:
                 self.bridge.state.update(

@@ -11,9 +11,27 @@ from session_support import Cancelled
 EVENTS = [
     {'type': 'runStarted', 'data': {'payloadSchema': 'acp'}},
     {'type': 'metadata', 'data': {'sessionId': 'fixture-session'}},
-    {'type': 'sessionUpdate', 'data': {'sessionId': 'fixture-session', 'update': {'sessionUpdate': 'agent_message_chunk', 'content': {'type': 'text', 'text': 'Hel'}}}},
-    {'type': 'sessionUpdate', 'data': {'sessionId': 'fixture-session', 'update': {'sessionUpdate': 'tool_call', 'content': {'type': 'text', 'text': 'IGNORED'}}}},
-    {'type': 'sessionUpdate', 'data': {'sessionId': 'fixture-session', 'update': {'sessionUpdate': 'agent_message_chunk', 'content': {'type': 'text', 'text': 'lo'}}}},
+    {
+        'type': 'sessionUpdate',
+        'data': {
+            'sessionId': 'fixture-session',
+            'update': {'sessionUpdate': 'agent_message_chunk', 'content': {'type': 'text', 'text': 'Hel'}},
+        },
+    },
+    {
+        'type': 'sessionUpdate',
+        'data': {
+            'sessionId': 'fixture-session',
+            'update': {'sessionUpdate': 'tool_call', 'content': {'type': 'text', 'text': 'IGNORED'}},
+        },
+    },
+    {
+        'type': 'sessionUpdate',
+        'data': {
+            'sessionId': 'fixture-session',
+            'update': {'sessionUpdate': 'agent_message_chunk', 'content': {'type': 'text', 'text': 'lo'}},
+        },
+    },
 ]
 
 
@@ -27,13 +45,16 @@ def fixture(tmp, events, check_stdin=None):
         'import sys,json\n'
         f'open({str(stdin_file)!r},"w",encoding="utf-8").write(sys.stdin.buffer.read().decode("utf-8"))\n'
         f'for e in json.load(open({str(events_file)!r},encoding="utf-8")):\n'
-        '    print(json.dumps(e),flush=True)\n', encoding='utf-8')
+        '    print(json.dumps(e),flush=True)\n',
+        encoding='utf-8',
+    )
     return [sys.executable, str(script)], stdin_file
 
 
 class KiroTransportTests(unittest.TestCase):
     def setUp(self):
         import tempfile
+
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         patcher = patch.object(k, '_forget')
@@ -44,11 +65,16 @@ class KiroTransportTests(unittest.TestCase):
         args, stdin_file = fixture(self.tmp.name, events)
         pieces = []
         with patch.object(k, 'command', return_value=args):
-            result = k.kiro_answer(self.tmp.name, 'Question?', 'fixture-model', threading.Event(), pieces.append, **kwargs)
+            result = k.kiro_answer(
+                self.tmp.name, 'Question?', 'fixture-model', threading.Event(), pieces.append, **kwargs
+            )
         return result, pieces, stdin_file.read_text(encoding='utf-8')
 
     def test_streams_agent_text_and_sends_instructions_on_stdin(self):
-        finished = {'type': 'runFinished', 'data': {'sessionId': 'fixture-session', 'status': 'success', 'finalText': 'Hello'}}
+        finished = {
+            'type': 'runFinished',
+            'data': {'sessionId': 'fixture-session', 'status': 'success', 'finalText': 'Hello'},
+        }
         result, pieces, stdin = self.run_events(EVENTS + [finished])
         self.assertEqual(result, 'Hello')
         self.assertEqual(pieces, ['Hel', 'lo'])
@@ -71,13 +97,17 @@ class KiroTransportTests(unittest.TestCase):
             self.run_events(EVENTS)
 
     def test_session_is_forgotten_after_answer(self):
-        finished = {'type': 'runFinished', 'data': {'sessionId': 'fixture-session', 'status': 'success', 'finalText': 'Hello'}}
+        finished = {
+            'type': 'runFinished',
+            'data': {'sessionId': 'fixture-session', 'status': 'success', 'finalText': 'Hello'},
+        }
         self.run_events(EVENTS + [finished])
         self.forget.assert_called_once()
         self.assertEqual(self.forget.call_args.args[1], 'fixture-session')
 
     def test_cancel_before_start(self):
-        cancel = threading.Event(); cancel.set()
+        cancel = threading.Event()
+        cancel.set()
         with self.assertRaises(Cancelled):
             k.kiro_answer(self.tmp.name, 'Q', '', cancel, lambda _: None)
 
@@ -100,11 +130,14 @@ class KiroTransportTests(unittest.TestCase):
         self.assertEqual(agent['mcpServers'], {})
 
     def test_catalog_parses_model_ids(self):
-        raw = json.dumps({'models': [{'model_id': 'auto'}, {'model_id': 'claude-sonnet-5.5'}, {'model_id': 'auto'}, None, {}]})
+        raw = json.dumps(
+            {'models': [{'model_id': 'auto'}, {'model_id': 'claude-sonnet-5.5'}, {'model_id': 'auto'}, None, {}]}
+        )
         self.assertEqual(k.parse_catalog(raw), ['auto', 'claude-sonnet-5.5'])
 
     def test_provider_is_listed_with_reasoning_levels(self):
         from reasoning_support import choices
+
         self.assertIn(k.PROVIDER, a.SPECIAL_PROVIDERS)
         self.assertEqual(choices(k.PROVIDER, 'auto'), ['自动', '服务默认', 'low', 'medium', 'high', 'xhigh', 'max'])
 
@@ -112,6 +145,7 @@ class KiroTransportTests(unittest.TestCase):
 class ResizeTests(unittest.TestCase):
     def test_resize_size_clamps_and_rejects_bad_values(self):
         from glass_desktop import resize_size, MIN_SIZE
+
         self.assertEqual(resize_size(1200.6, 900), (1200, 900))
         self.assertEqual(resize_size(10, 10), MIN_SIZE)
         self.assertEqual(resize_size(99999, 99999), (10000, 10000))

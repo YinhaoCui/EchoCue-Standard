@@ -1,4 +1,5 @@
 """Styles remain non-secret preferences; built-in prompts use the real request path."""
+
 import unittest
 import audio_answer as a
 import test_sessions
@@ -16,16 +17,24 @@ class PresentationValidationTests(unittest.TestCase):
         self.assertEqual(presentation_value('listen_frost', 100), '100')
         self.assertEqual(presentation_value('listen_theme_colors', '1'), '1')
         self.assertEqual(listen_layout('0,0,0,280,400'), '0,0,0,280,400')
-        for key, value in [('ui_theme', 'other'), ('midnight_split', 'nan'),
-                           ('midnight_split', 24), ('midnight_split', 66),
-                           ('listen_frost', -1), ('listen_frost', 101), ('listen_theme_colors', 'yes')]:
+        for key, value in [
+            ('ui_theme', 'other'),
+            ('midnight_split', 'nan'),
+            ('midnight_split', 24),
+            ('midnight_split', 66),
+            ('listen_frost', -1),
+            ('listen_frost', 101),
+            ('listen_theme_colors', 'yes'),
+        ]:
             with self.subTest(key=key, value=value), self.assertRaises(ValueError):
                 presentation_value(key, value)
 
     def test_builtin_catalog_is_complete_and_returns_independent_entries(self):
         prompts = builtin_prompts()
-        self.assertEqual({p['id'] for p in prompts},
-                         {'general', 'coding', 'interview', 'translate', 'meeting', 'learning', 'writing'})
+        self.assertEqual(
+            {p['id'] for p in prompts},
+            {'general', 'coding', 'interview', 'translate', 'meeting', 'learning', 'writing'},
+        )
         self.assertEqual(len(prompts), 7)
         for entry in prompts:
             self.assertTrue(entry['name'] and entry['name_zh'] and entry['text'])
@@ -53,7 +62,9 @@ class PresentationSavingTests(unittest.TestCase):
         bridge.app = self.ui
         bridge.window_state = {}
         self.ui.remember_keys.set(False)
-        bridge.settings({'ui_theme': 'cosmic', 'midnight_split': '47', 'listen_frost': '80', 'listen_theme_colors': '1'})
+        bridge.settings(
+            {'ui_theme': 'cosmic', 'midnight_split': '47', 'listen_frost': '80', 'listen_theme_colors': '1'}
+        )
         payload = a.save_settings.call_args.args[1]
         self.assertNotIn('apis', payload)
         self.assertEqual(payload['layout']['ui_theme'], 'cosmic')
@@ -81,14 +92,21 @@ class PresentationSavingTests(unittest.TestCase):
     def test_every_builtin_prompt_reaches_both_prompt_builders(self):
         from answer_jobs import build_prompt
         from generation_context import ContextPrompt
+
         bridge = GlassBridge(self.ui)
         try:
             self.ui.provider.set('Codex')
             self.assertEqual(len(bridge.snapshot()['prompt_presets']), 7)
             for preset in builtin_prompts():
                 with self.subTest(preset=preset['id']):
-                    bridge.command(dict(action='apply_context', id=preset['id'], version=self.ui.context_version,
-                                        values=dict(instructions=preset['text'])))
+                    bridge.command(
+                        dict(
+                            action='apply_context',
+                            id=preset['id'],
+                            version=self.ui.context_version,
+                            values=dict(instructions=preset['text']),
+                        )
+                    )
                     inputs, error = self.ui.request_inputs()
                     self.assertIsNone(error)
                     self.assertIn(preset['text'], build_prompt(inputs, 'question'))

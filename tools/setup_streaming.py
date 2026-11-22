@@ -1,4 +1,5 @@
 """Install pinned streaming ASR wheels and checksum-verified local models."""
+
 import hashlib
 import io
 import json
@@ -20,10 +21,26 @@ def main(models_only=False):
     if sys.platform != 'win32' or platform.machine().lower() not in ('amd64', 'x86_64'):
         raise RuntimeError('Windows x64 is required.')
     tag = f'cp{sys.version_info.major}{sys.version_info.minor}'
-    for name, version in ([] if models_only else [('numpy', '2.5.3'), ('sherpa-onnx-core', '1.13.8'), ('sherpa-onnx', '1.13.8'), ('webrtcvad-wheels', '2.0.14.post1')]):
+    for name, version in (
+        []
+        if models_only
+        else [
+            ('numpy', '2.5.3'),
+            ('sherpa-onnx-core', '1.13.8'),
+            ('sherpa-onnx', '1.13.8'),
+            ('webrtcvad-wheels', '2.0.14.post1'),
+        ]
+    ):
         metadata = json.loads(download(f'https://pypi.org/pypi/{name}/{version}/json'))
-        entry = next((x for x in metadata['urls'] if x['filename'].endswith(f'-{tag}-{tag}-win_amd64.whl')
-                      or x['filename'].endswith('-py3-none-win_amd64.whl')), None)
+        entry = next(
+            (
+                x
+                for x in metadata['urls']
+                if x['filename'].endswith(f'-{tag}-{tag}-win_amd64.whl')
+                or x['filename'].endswith('-py3-none-win_amd64.whl')
+            ),
+            None,
+        )
         if entry is None:
             raise RuntimeError(f'No compatible {name} wheel for {tag}. Use Python 3.12-3.14 x64.')
         blob = download(entry['url'])
@@ -52,6 +69,7 @@ def main(models_only=False):
 
 if __name__ == '__main__':
     import argparse
-    parser=argparse.ArgumentParser()
-    parser.add_argument('--models-only',action='store_true')
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--models-only', action='store_true')
     main(models_only=parser.parse_args().models_only)

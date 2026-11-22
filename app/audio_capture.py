@@ -1,6 +1,6 @@
 """System-audio and microphone capture, and one-shot whisper transcription."""
+
 from app_paths import ROOT, WORK
-import audioop
 from collections import deque
 import io
 import os
@@ -10,10 +10,10 @@ import threading
 import time
 import uuid
 import wave
-import pyaudiowpatch as pa
 from session_support import Cancelled
 
 RATE = 16000
+
 
 def wav_bytes(pcm):
     output = io.BytesIO()
@@ -23,6 +23,7 @@ def wav_bytes(pcm):
         writer.setframerate(RATE)
         writer.writeframes(pcm)
     return output.getvalue()
+
 
 class AudioBuffer:
     def __init__(self, seconds=120):
@@ -41,14 +42,26 @@ class AudioBuffer:
         now = time.monotonic() if now is None else now
         with self.lock:
             blocks = [data for stamp, data in self.blocks if stamp >= now - seconds]
-        return b''.join(blocks)[-int(seconds * RATE * 2):]
+        return b''.join(blocks)[-int(seconds * RATE * 2) :]
 
     def clear(self):
         with self.lock:
             self.blocks.clear()
 
+
+def native_audio():
+    """Load the native capture packages only when a Capture is created."""
+    global audioop, pa
+    import audioop
+    import pyaudiowpatch as pa
+
+
+audioop = pa = None
+
+
 class Capture:
     def __init__(self):
+        native_audio()
         self.audio = pa.PyAudio()
         self.buffer = AudioBuffer()
         self.stream = None
@@ -86,10 +99,15 @@ class Capture:
                 self.error = str(exc)
                 return (None, pa.paAbort)
 
-        self.stream = self.audio.open(format=pa.paInt16, channels=channels,
-                                      rate=source_rate, input=True,
-                                      input_device_index=int(device['index']),
-                                      frames_per_buffer=1024, stream_callback=receive)
+        self.stream = self.audio.open(
+            format=pa.paInt16,
+            channels=channels,
+            rate=source_rate,
+            input=True,
+            input_device_index=int(device['index']),
+            frames_per_buffer=1024,
+            stream_callback=receive,
+        )
 
     def active(self):
         try:
@@ -117,10 +135,16 @@ class Capture:
         finally:
             self.audio.terminate()
 
+
 def run_process(args, cancel, *, stdin=None, timeout=180):
-    proc = subprocess.Popen(args, stdin=subprocess.PIPE if stdin is not None else subprocess.DEVNULL,
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                            creationflags=subprocess.CREATE_NO_WINDOW, cwd=WORK)
+    proc = subprocess.Popen(
+        args,
+        stdin=subprocess.PIPE if stdin is not None else subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        creationflags=subprocess.CREATE_NO_WINDOW,
+        cwd=WORK,
+    )
     deadline = time.monotonic() + timeout
     sent = False
     try:
@@ -142,6 +166,7 @@ def run_process(args, cancel, *, stdin=None, timeout=180):
             proc.kill()
             proc.communicate()
 
+
 def transcribe(pcm, language, cancel, model_path=None):
     executables = list((ROOT / 'runtime').rglob('whisper-cli.exe'))
     model = Path(model_path) if model_path else ROOT / 'runtime' / 'ggml-base.bin'
@@ -152,9 +177,24 @@ def transcribe(pcm, language, cancel, model_path=None):
     text = stem.with_suffix('.txt')
     try:
         audio.write_bytes(wav_bytes(pcm))
-        run_process([str(executables[0]), '-m', str(model), '-f', str(audio),
-                     '-l', language, '-otxt', '-of', str(stem), '-nt',
-                     '-t', str(min(8, os.cpu_count() or 4))], cancel)
+        run_process(
+            [
+                str(executables[0]),
+                '-m',
+                str(model),
+                '-f',
+                str(audio),
+                '-l',
+                language,
+                '-otxt',
+                '-of',
+                str(stem),
+                '-nt',
+                '-t',
+                str(min(8, os.cpu_count() or 4)),
+            ],
+            cancel,
+        )
         result = text.read_text(encoding='utf-8-sig').strip()
         if not result:
             raise RuntimeError('没有识别到语音，请检查音频来源和输入音量。')

@@ -1,6 +1,6 @@
 # Workbench interface
 
-Choose light Workbench, Black Gold Workbench, or Classic Glass in Settings. Existing Midnight selections migrate to Workbench. The listening view keeps transcripts and answers in separate columns, with tabs for individual answer tasks.
+Choose Light, Dark, or Classic floating panels in Settings. Existing Midnight selections migrate to Light, and Black Gold selections to Dark. The listening view keeps transcripts and answers in separate columns, with tabs for individual answer tasks.
 
 Settings group context, templates, audio, appearance, shortcuts, and inline diagnostics. Bilingual captions preserve original source records while simplifying reading labels. Caption provider and model selection are independent from answer settings.
 

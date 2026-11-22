@@ -1,4 +1,5 @@
 """Catalog refresh behavior across API, CLI, and speed-test selectors."""
+
 import io
 import json
 import threading
@@ -22,12 +23,16 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(select_models('LM Studio'), [])
 
     def test_success_keeps_descriptions_order_but_only_for_returned_models(self):
-        self.assertEqual(select_models('DeepSeek', ['z-new', 'deepseek-v4-pro', 'a-new']),
-                         ['deepseek-v4-pro', 'a-new', 'z-new'])
+        self.assertEqual(
+            select_models('DeepSeek', ['z-new', 'deepseek-v4-pro', 'a-new']), ['deepseek-v4-pro', 'a-new', 'z-new']
+        )
 
     def test_malformed_response_does_not_replace_cache_with_empty_catalog(self):
         for rows in ([{}], [{'id': None}], [{'id': []}], [{'id': ''}], ['not-a-model']):
-            with self.subTest(rows=rows), patch('urllib.request.urlopen', return_value=io.BytesIO(json.dumps({'data': rows}).encode())):
+            with (
+                self.subTest(rows=rows),
+                patch('urllib.request.urlopen', return_value=io.BytesIO(json.dumps({'data': rows}).encode())),
+            ):
                 with self.assertRaisesRegex(RuntimeError, '格式异常'):
                     a.list_provider_models('DeepSeek', 'fixture-key')
         with patch('urllib.request.urlopen', return_value=io.BytesIO(b'{"data":[]}')):
@@ -46,16 +51,21 @@ class DiscoveryUITests(unittest.TestCase):
     def refresh(self, models=None, error=None, during=None):
         # Stop at the real HTTP seam, so model/key edits happen while a refresh is in flight.
         started, release = threading.Event(), threading.Event()
+
         def read(*args, **kwargs):
             started.set()
-            if not release.wait(3): raise RuntimeError('test timed out')
-            if error: raise RuntimeError(error)
+            if not release.wait(3):
+                raise RuntimeError('test timed out')
+            if error:
+                raise RuntimeError(error)
             return models
+
         with patch.object(a, 'list_provider_models', side_effect=read):
             self.ui.refresh_models()
             try:
                 self.assertTrue(started.wait(2))
-                if during: during()
+                if during:
+                    during()
             finally:
                 release.set()
             kind, result = self.ui.events.get(timeout=3)

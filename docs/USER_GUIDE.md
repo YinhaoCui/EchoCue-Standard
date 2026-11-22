@@ -12,7 +12,7 @@ Click **Prepare** to enter the listening workspace. With preparation enabled, re
 
 ## Workspaces
 
-Choose **Interface style** at the top of Settings, or **Layout → Interface style** in Listen. **Classic Glass** retains the original floating layout. **Midnight Studio** uses a graphite palette, a compact workspace rail, and side-by-side transcript and answer panels on wide windows; narrower windows stack the panels. Drag the divider to change the split, use Left/Right while it is focused, or double-click to reset. Styles and the split are saved even when Remember keys is off. Switching styles keeps current drafts, transcripts, answers and active tasks.
+Choose **Interface style** in Settings → Interface settings, or **Layout → Interface style** in Listen. **Light** and **Dark** share one layout: the transcript on the left as a cue sheet (time in the margin, the newest line at full strength), the answer on the right, and one filled button for the main action. Red appears only while transcription is running. **Classic floating panels** keeps the original separate, resizable panels.
 
 Settings now use a single column with separate navigation for models, audio, meeting assistance, context, preferences and usage. Model IDs, reasoning and the LM Studio address are under **Model options**. Request limits, prediction, preparation, session reuse and answer mode remain available under **Preferences → Generation options**.
 

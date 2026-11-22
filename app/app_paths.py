@@ -1,4 +1,5 @@
 """Application paths. Importing this puts the bundled vendor packages on sys.path."""
+
 from pathlib import Path
 import os
 import sys
@@ -6,6 +7,8 @@ import sys
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT / 'vendor') not in sys.path:
     sys.path.insert(0, str(ROOT / 'vendor'))
+
+
 def storage_root(root):
     """Installed builds keep user files outside the replaceable application folder."""
     root = Path(root)

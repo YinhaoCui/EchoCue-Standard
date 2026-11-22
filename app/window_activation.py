@@ -1,4 +1,5 @@
 """Keep mouse-only desktop controls from activating over a fullscreen app."""
+
 import ctypes
 from ctypes import wintypes as w
 
@@ -18,8 +19,15 @@ class MouseActivationGuard:
         self.user.GetWindowLongPtrW.restype = ctypes.c_ssize_t
         self.user.SetWindowLongPtrW.argtypes = [w.HWND, ctypes.c_int, ctypes.c_ssize_t]
         self.user.SetWindowLongPtrW.restype = ctypes.c_ssize_t
-        self.user.SetWindowPos.argtypes = [w.HWND, w.HWND, ctypes.c_int, ctypes.c_int,
-                                          ctypes.c_int, ctypes.c_int, w.UINT]
+        self.user.SetWindowPos.argtypes = [
+            w.HWND,
+            w.HWND,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            ctypes.c_int,
+            w.UINT,
+        ]
         self.user.SetWindowPos.restype = w.BOOL
 
     def set_topmost(self, enabled):
@@ -31,8 +39,7 @@ class MouseActivationGuard:
             # A stale extended-style bit can disagree with the native z-order band.
             if not self.user.SetWindowPos(self.hwnd, w.HWND(-2), 0, 0, 0, 0, 0x13):
                 raise ctypes.WinError(ctypes.get_last_error())
-        if not self.user.SetWindowPos(self.hwnd, w.HWND(-1 if enabled else -2),
-                                      0, 0, 0, 0, 0x13):
+        if not self.user.SetWindowPos(self.hwnd, w.HWND(-1 if enabled else -2), 0, 0, 0, 0, 0x13):
             raise ctypes.WinError(ctypes.get_last_error())
         self.topmost = bool(enabled)
 
@@ -44,8 +51,7 @@ class MouseActivationGuard:
             self.enabled = bool(enabled)
             return
         ctypes.set_last_error(0)
-        previous = self.user.SetWindowLongPtrW(
-            self.hwnd, -20, flags | NOACTIVATE if enabled else flags & ~NOACTIVATE)
+        previous = self.user.SetWindowLongPtrW(self.hwnd, -20, flags | NOACTIVATE if enabled else flags & ~NOACTIVATE)
         if not previous and ctypes.get_last_error():
             raise ctypes.WinError(ctypes.get_last_error())
         self.enabled = bool(enabled)

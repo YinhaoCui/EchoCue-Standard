@@ -1,4 +1,5 @@
 """Windows desktop host for EchoCue Standard."""
+
 import json
 import math
 import os
@@ -15,11 +16,13 @@ MIN_SIZE = (760, 560)
 def set_topmost(window, value, sync_activation=lambda: None):
     """Apply pin and activation policy together on the native UI thread."""
     from System import Action
+
     def apply():
         # Reassigning TopMost also changes z-order, even when its value is unchanged.
         if window.on_top != bool(value):
             window.on_top = bool(value)
         sync_activation()
+
     if window.native.InvokeRequired:
         window.native.Invoke(Action(apply))
     else:
@@ -54,6 +57,7 @@ def resize_rect(width, height, left=None, top=None):
 
 def host(url, token):
     import webview
+
     activation_guard = [None]
     surface_layout = [{}]
 
@@ -78,8 +82,7 @@ def host(url, token):
             def move():
                 user = ctypes.WinDLL('user32', use_last_error=True)
                 user.ReleaseCapture.argtypes = []
-                user.SendMessageW.argtypes = [wintypes.HWND, wintypes.UINT,
-                                             wintypes.WPARAM, wintypes.LPARAM]
+                user.SendMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
                 user.SendMessageW.restype = ctypes.c_ssize_t
                 user.ReleaseCapture()
                 user.SendMessageW(window.native.Handle.ToInt64(), 0x00A1, 2, 0)
@@ -92,6 +95,7 @@ def host(url, token):
             surface_layout[0] = layout
             if activation_guard[0] is not None:
                 from System import Action
+
                 window.native.BeginInvoke(Action(update_activation))
             return True
 
@@ -122,16 +126,26 @@ def host(url, token):
         def close(self):
             window.destroy()
 
-    window = webview.create_window('EchoCue Standard', url + '/#' + token, js_api=API(),
-                                   width=1180, height=840, min_size=MIN_SIZE, frameless=True,
-                                   easy_drag=False, background_color='#18212a', text_select=True)
+    window = webview.create_window(
+        'EchoCue Standard',
+        url + '/#' + token,
+        js_api=API(),
+        width=1180,
+        height=840,
+        min_size=MIN_SIZE,
+        frameless=True,
+        easy_drag=False,
+        background_color='#18212a',
+        text_select=True,
+    )
     stopped = threading.Event()
     tray = [None]
     latest = [{}]
 
     def fetch(path='/state', body=None):
-        request = urllib.request.Request(url + path, data=body,
-            headers={'X-Listener-Token': token, 'Content-Type': 'application/json'})
+        request = urllib.request.Request(
+            url + path, data=body, headers={'X-Listener-Token': token, 'Content-Type': 'application/json'}
+        )
         with urllib.request.urlopen(request, timeout=3) as response:
             return json.load(response)
 
@@ -141,14 +155,19 @@ def host(url, token):
                 fetch('/command', json.dumps(payload).encode('utf-8'))
             except (OSError, ValueError):
                 pass
+
         threading.Thread(target=run, daemon=True).start()
 
     def show_window(view=None):
         window.show()
         window.restore()
         if view:
-            threading.Thread(target=lambda: window.evaluate_js(
-                "document.querySelector('button[data-view=%s]').click()" % json.dumps(view)), daemon=True).start()
+            threading.Thread(
+                target=lambda: window.evaluate_js(
+                    "document.querySelector('button[data-view=%s]').click()" % json.dumps(view)
+                ),
+                daemon=True,
+            ).start()
 
     def pick(key):
         if key in ('show', 'listen', 'settings'):
@@ -168,6 +187,7 @@ def host(url, token):
             pass
         if tray[0]:
             tray[0].dispose()
+
     window.events.closed += closed
 
     def sync():
@@ -179,16 +199,20 @@ def host(url, token):
         from System.Drawing import Icon
         from tray_menu import Tray
         import ctypes
+
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('EchoCue-Standard.Desktop')
+
         def initialize():
             from window_activation import MouseActivationGuard
+
             activation_guard[0] = MouseActivationGuard(window.native.Handle.ToInt64())
             update_activation()
             window.native.Icon = Icon(str(ROOT / 'app/assets/echocue.ico'))
             tray[0] = Tray(ROOT / 'app/assets/echocue.ico', lambda: latest[0], pick, show_window)
+
         window.native.Invoke(Action(initialize))
         failures = 0
-        while not stopped.wait(.25):
+        while not stopped.wait(0.25):
             try:
                 reply = fetch()
                 state = reply.get('state', reply)
@@ -203,6 +227,7 @@ def host(url, token):
                 if failures >= 20:
                     window.destroy()
                     return
+
     webview.start(sync, gui='edgechromium', private_mode=True)
 
 
@@ -210,7 +235,18 @@ def main():
     import tkinter as tk
     import audio_answer as a
     from glass_bridge import GlassBridge
+
+    import app_log
+
+    from app_paths import data_path
+
+    app_log.setup(data_path(ROOT, 'logs'))
+    app_log.get().info(
+        'Starting EchoCue %s',
+        (ROOT / 'VERSION').read_text(encoding='utf-8').strip() if (ROOT / 'VERSION').exists() else '',
+    )
     root = tk.Tk()
+    app_log.install_hooks(root)
     app = a.App(root)
     root.iconbitmap(str(ROOT / 'app/assets/echocue.ico'))
     bridge = GlassBridge(app)
@@ -226,10 +262,17 @@ def main():
     # Avoid putting the session bearer token in process arguments or a disk file.
     env['ECHOCUE_WEB_TOKEN'] = bridge.token
     from app_paths import WORK
+
     log = (WORK / 'glass-host.log').open('w', encoding='utf-8')
-    child = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), '--host', bridge.url],
-                             env=env, stdout=log, stderr=log, creationflags=0x08000000)
+    child = subprocess.Popen(
+        [sys.executable, str(Path(__file__).resolve()), '--host', bridge.url],
+        env=env,
+        stdout=log,
+        stderr=log,
+        creationflags=0x08000000,
+    )
     import screenshot_context
+
     original_foreground = screenshot_context.foreground_window
     last_target = [None]
 
@@ -247,7 +290,10 @@ def main():
         code = child.poll()
         if code is not None:
             from tkinter import messagebox
-            messagebox.showerror('EchoCue', 'The desktop interface stopped. See work/glass-host.log for details.', parent=root)
+
+            messagebox.showerror(
+                'EchoCue', 'The desktop interface stopped. See work/glass-host.log for details.', parent=root
+            )
             app.close()
             return
         root.after(1000, check_host)

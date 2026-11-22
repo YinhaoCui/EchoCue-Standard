@@ -1,4 +1,5 @@
 """Independent caption credentials, model catalogs, persistence and low-effort routing."""
+
 import threading
 import time
 import unittest
@@ -20,15 +21,18 @@ class CaptionModelTests(unittest.TestCase):
         self.ui.advanced['caption_model'].set(model)
 
     def test_caption_api_and_effort_are_independent_of_high_effort_answer(self):
-        self.ui.provider.set('Codex'); self.ui.update_provider()
+        self.ui.provider.set('Codex')
+        self.ui.update_provider()
         self.ui.reasoning_selection.set('high')
         self.ui.api_settings['DeepSeek']['key'] = 'translation-test-key'
         self.select('DeepSeek', 'deepseek-flash')
         answer_before = self.ui.request_inputs()[0]
         caption, error = self.ui.caption_models.inputs()
         self.assertIsNone(error)
-        self.assertEqual((caption['provider'], caption['model'], caption['key'], caption['effort']),
-                         ('DeepSeek', 'deepseek-flash', 'translation-test-key', '关闭'))
+        self.assertEqual(
+            (caption['provider'], caption['model'], caption['key'], caption['effort']),
+            ('DeepSeek', 'deepseek-flash', 'translation-test-key', '关闭'),
+        )
         for field in ('history', 'profile', 'documents', 'images', 'session_key'):
             self.assertNotIn(field, caption)
         answer_after = self.ui.request_inputs()[0]
@@ -89,7 +93,8 @@ class CaptionModelTests(unittest.TestCase):
         self.assertIn('模型', self.ui.caption_models.inputs()[1])
 
     def test_live_key_is_used_and_never_exposed_in_web_state(self):
-        self.ui.provider.set('Gemini'); self.ui.update_provider()
+        self.ui.provider.set('Gemini')
+        self.ui.update_provider()
         self.ui.key.set('unsaved-live-key')
         self.select('Gemini', 'gemini-2.5-flash')
         self.assertEqual(self.ui.caption_models.inputs()[0]['key'], 'unsaved-live-key')
@@ -101,11 +106,13 @@ class CaptionModelTests(unittest.TestCase):
         old = self.ui.caption_models.identity('DeepSeek')
         answer_provider = self.ui.provider.get()
         started, release = threading.Event(), threading.Event()
+
         def read(*args, **kwargs):
             started.set()
             if not release.wait(3):
                 raise RuntimeError('fixture timed out')
             return ['new-model']
+
         with patch.object(a, 'list_provider_models', side_effect=read) as request:
             self.ui.caption_models.refresh()
             self.assertTrue(started.wait(3))
@@ -127,7 +134,8 @@ class CaptionModelTests(unittest.TestCase):
         self.assertEqual(self.ui.provider.get(), answer_provider)
 
     def test_refresh_failure_retains_catalog_and_empty_success_replaces_it(self):
-        self.select('DeepSeek'); self.ui.api_settings['DeepSeek']['key'] = 'fixture-key'
+        self.select('DeepSeek')
+        self.ui.api_settings['DeepSeek']['key'] = 'fixture-key'
         identity = self.ui.caption_models.identity('DeepSeek')
         self.ui.discovered_models[identity] = ['previous-model']
         self.ui.caption_models.receive(('DeepSeek', identity, None, None, 'Refresh failed'))
@@ -156,11 +164,14 @@ class CaptionModelTests(unittest.TestCase):
         with patch.object(a, 'save_settings') as save:
             self.assertTrue(self.ui.save_preferences())
         saved = save.call_args.args[1]
-        self.assertEqual(saved['caption_translation'], {'caption_provider': 'DeepSeek', 'caption_model': 'custom-model'})
+        self.assertEqual(
+            saved['caption_translation'], {'caption_provider': 'DeepSeek', 'caption_model': 'custom-model'}
+        )
         self.assertNotIn('apis', saved)
 
     def test_meeting_recap_still_uses_answer_model_and_reasoning(self):
-        self.ui.provider.set('Codex'); self.ui.update_provider()
+        self.ui.provider.set('Codex')
+        self.ui.update_provider()
         self.ui.advanced['codex_model'].set('original-answer-model')
         self.ui.reasoning_selection.set('high')
         self.ui.api_settings['DeepSeek']['key'] = 'fixture-key'
@@ -179,8 +190,10 @@ class CaptionModelRestoreTests(unittest.TestCase):
     tearDown = test_sessions.UITests.tearDown
 
     def setUp(self):
-        self.initial_settings = {'ui_language': 'zh', 'caption_translation': {
-            'caption_provider': 'DeepSeek', 'caption_model': 'saved-custom-model'}}
+        self.initial_settings = {
+            'ui_language': 'zh',
+            'caption_translation': {'caption_provider': 'DeepSeek', 'caption_model': 'saved-custom-model'},
+        }
         test_sessions.UITests.setUp(self)
 
     def test_restore(self):

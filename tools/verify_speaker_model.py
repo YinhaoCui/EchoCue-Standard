@@ -1,4 +1,5 @@
 """Smoke-test the real speaker model using official sherpa-onnx sample WAVs."""
+
 from pathlib import Path
 import sys
 import time

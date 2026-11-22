@@ -4,6 +4,7 @@ Every other module asks this table what a provider is (local-login CLI or
 API), where its model setting lives, whether it accepts screenshots and how
 to call it, instead of repeating provider names.
 """
+
 from dataclasses import dataclass
 import re
 import threading
@@ -25,36 +26,63 @@ LM_STUDIO = 'LM Studio'
 class Provider:
     name: str
     cli: bool = False
-    model_option: str = ''   # advanced option holding a CLI provider's model ID
-    note: str = ''           # one-line description shown with the provider
+    model_option: str = ''  # advanced option holding a CLI provider's model ID
+    note: str = ''  # one-line description shown with the provider
     model_note: str = '留空使用默认模型；也可输入模型 ID。'
-    images: bool = True      # screenshots can be attached to answers
-    stateful: bool = False   # keeps a resumable conversation between answers
+    images: bool = True  # screenshots can be attached to answers
+    stateful: bool = False  # keeps a resumable conversation between answers
     default_model: str = '默认'  # label used when the CLI model is left empty
-    base: str = ''           # API base URL
-    env: str = ''            # environment variable that may hold the API key
+    base: str = ''  # API base URL
+    env: str = ''  # environment variable that may hold the API key
 
 
-PROVIDERS = {p.name: p for p in (
-    Provider(CODEX, cli=True, model_option='codex_model', note='Codex · 本机账号', stateful=True),
-    Provider(ANTIGRAVITY, cli=True, model_option='antigravity_model', note='Antigravity · 本机账号',
-             model_note='快速回答模式不改变此通道的模型档位；低思考档可能更快，但复杂问题推理能力可能下降。',
-             stateful=True),
-    Provider(CLAUDE, cli=True, model_option='claude_model', note='Claude Code · 沿用本机 CLI 身份验证，支持截图',
-             model_note='Claude Code model catalog; refresh to read CLI metadata. Custom model IDs are supported.',
-             stateful=True),
-    Provider(KIRO, cli=True, model_option='kiro_model', note='Kiro · 沿用本机 kiro-cli 登录',
-             model_note='Kiro model catalog; refresh to read kiro-cli models. Leave empty for auto.',
-             default_model='auto'),
-    Provider(META, note='Meta 官方 API · 支持转录与截图 · 使用 Meta Model API Key，按 API 用量计费。',
-             base='https://api.meta.ai/v1', env='MODEL_API_KEY'),
-    Provider(GEMINI, note='Gemini · API', env='GEMINI_API_KEY'),
-    Provider(KIMI, base='https://api.moonshot.cn/v1', env='MOONSHOT_API_KEY'),
-    Provider(DEEPSEEK, images=False, base='https://api.deepseek.com', env='DEEPSEEK_API_KEY'),
-    Provider(QWEN, base='https://dashscope.aliyuncs.com/compatible-mode/v1', env='DASHSCOPE_API_KEY'),
-    Provider(LM_STUDIO, note='LM Studio：本机服务，Key 可留空（启用认证时填写本地 Token）。', stateful=True,
-             base='http://127.0.0.1:1234/v1', env='LM_STUDIO_API_KEY'),
-)}
+PROVIDERS = {
+    p.name: p
+    for p in (
+        Provider(CODEX, cli=True, model_option='codex_model', note='Codex · 本机账号', stateful=True),
+        Provider(
+            ANTIGRAVITY,
+            cli=True,
+            model_option='antigravity_model',
+            note='Antigravity · 本机账号',
+            model_note='快速回答模式不改变此通道的模型档位；低思考档可能更快，但复杂问题推理能力可能下降。',
+            stateful=True,
+        ),
+        Provider(
+            CLAUDE,
+            cli=True,
+            model_option='claude_model',
+            note='Claude Code · 沿用本机 CLI 身份验证，支持截图',
+            model_note='Claude Code model catalog; refresh to read CLI metadata. Custom model IDs are supported.',
+            stateful=True,
+        ),
+        Provider(
+            KIRO,
+            cli=True,
+            model_option='kiro_model',
+            note='Kiro · 沿用本机 kiro-cli 登录',
+            model_note='Kiro model catalog; refresh to read kiro-cli models. Leave empty for auto.',
+            default_model='auto',
+        ),
+        Provider(
+            META,
+            note='Meta 官方 API · 支持转录与截图 · 使用 Meta Model API Key，按 API 用量计费。',
+            base='https://api.meta.ai/v1',
+            env='MODEL_API_KEY',
+        ),
+        Provider(GEMINI, note='Gemini · API', env='GEMINI_API_KEY'),
+        Provider(KIMI, base='https://api.moonshot.cn/v1', env='MOONSHOT_API_KEY'),
+        Provider(DEEPSEEK, images=False, base='https://api.deepseek.com', env='DEEPSEEK_API_KEY'),
+        Provider(QWEN, base='https://dashscope.aliyuncs.com/compatible-mode/v1', env='DASHSCOPE_API_KEY'),
+        Provider(
+            LM_STUDIO,
+            note='LM Studio：本机服务，Key 可留空（启用认证时填写本地 Token）。',
+            stateful=True,
+            base='http://127.0.0.1:1234/v1',
+            env='LM_STUDIO_API_KEY',
+        ),
+    )
+}
 
 CLI_PROVIDERS = [p.name for p in PROVIDERS.values() if p.cli]
 API_NAMES = [p.name for p in PROVIDERS.values() if not p.cli]
@@ -99,8 +127,23 @@ def migrate(name):
     return name if name in PROVIDERS else CODEX
 
 
-def cli_answer(name, prompt, model, cancel, emit, *, on_usage=None, total_timeout=600, effort='自动',
-               images=(), image_paths=(), session_key=None, thinking_policy='自动', transcript='', instructions=''):
+def cli_answer(
+    name,
+    prompt,
+    model,
+    cancel,
+    emit,
+    *,
+    on_usage=None,
+    total_timeout=600,
+    effort='自动',
+    images=(),
+    image_paths=(),
+    session_key=None,
+    thinking_policy='自动',
+    transcript='',
+    instructions='',
+):
     """Send one prompt through a local-login CLI provider and stream text to emit.
 
     prompt may be a string or a generation_context.ContextPrompt. Codex also
@@ -109,6 +152,7 @@ def cli_answer(name, prompt, model, cancel, emit, *, on_usage=None, total_timeou
     covers every caller.
     """
     import audio_answer as a
+
     common = dict(on_usage=on_usage, total_timeout=total_timeout, effort=effort)
     lane = {'session_key': session_key} if session_key else {}
     if name == CODEX:
@@ -117,8 +161,18 @@ def cli_answer(name, prompt, model, cancel, emit, *, on_usage=None, total_timeou
         def forward(text):
             sent.append(text)
             emit(text)
-        result = a.codex_answer(transcript, instructions, cancel, model=model, on_text=forward, prompt_override=prompt,
-                                **common, **lane, **({'image_paths': image_paths} if image_paths else {}))
+
+        result = a.codex_answer(
+            transcript,
+            instructions,
+            cancel,
+            model=model,
+            on_text=forward,
+            prompt_override=prompt,
+            **common,
+            **lane,
+            **({'image_paths': image_paths} if image_paths else {}),
+        )
         if not sent and result:
             emit(result)
         return result
@@ -130,23 +184,158 @@ def cli_answer(name, prompt, model, cancel, emit, *, on_usage=None, total_timeou
     if name == KIRO:
         return a.kiro_answer(a.ROOT, prompt, model, cancel, emit, **common, **({'images': images} if images else {}))
     if name == ANTIGRAVITY:
-        return a.antigravity_answer(a.ROOT, prompt, model, cancel, emit, **common, **lane,
-                                    **({'images': images} if images else {}))
+        return a.antigravity_answer(
+            a.ROOT, prompt, model, cancel, emit, **common, **lane, **({'images': images} if images else {})
+        )
     raise ValueError('Not a local-login provider: ' + str(name))
 
 
+@dataclass
+class AnswerRequest:
+    """One generation request in a provider-neutral shape. See answer()."""
+
+    provider: str
+    model: str  # API model ID, or the CLI provider's model option value
+    cancel: threading.Event
+    emit: object  # called with each streamed text piece
+    transcript: str = ''
+    instructions: str = ''
+    prompt: object = None  # CLI/LM Studio transport prompt: a string or a ContextPrompt
+    system_prompt: str | None = None
+    key: str = ''
+    base: str | None = None  # OpenAI-compatible base URL (LM Studio)
+    on_usage: object = None
+    on_status: object = None  # called with a status line when the transport changes mode
+    timeout: float = 600
+    effort: str = '自动'
+    reasoning: bool = False
+    fast: bool = False
+    output_limit: int | None = None
+    images: tuple | list = ()
+    session_key: str | None = None
+    thinking_policy: str = '自动'
+    lm_native: bool = False  # try LM Studio's native stateful API before the compatible endpoint
+
+
+def answer(request):
+    """Send a request through the provider's transport and stream text to request.emit.
+
+    Every caller (answers, caption translation, speed test) goes through here, so
+    a new provider needs one branch here instead of one per caller. Transports
+    are looked up on audio_answer at call time so one patch point covers every caller.
+    """
+    import audio_answer as a
+
+    r = request
+    if is_cli(r.provider):
+        from screenshot_context import image_files
+
+        with image_files(r.images if r.provider == CODEX else (), a.WORK) as paths:
+            return cli_answer(
+                r.provider,
+                r.prompt,
+                r.model,
+                r.cancel,
+                r.emit,
+                on_usage=r.on_usage,
+                total_timeout=r.timeout,
+                effort=r.effort,
+                session_key=r.session_key,
+                image_paths=paths,
+                images=r.images,
+                thinking_policy=r.thinking_policy,
+                transcript=r.transcript,
+                instructions=r.instructions,
+            )
+    images = {'images': r.images} if r.images else {}
+    if r.provider == GEMINI:
+        return a.gemini_answer(
+            None,
+            r.key,
+            r.model,
+            r.instructions,
+            r.cancel,
+            r.emit,
+            fast=r.fast,
+            transcript=r.transcript,
+            on_usage=r.on_usage,
+            max_output=r.output_limit,
+            total_timeout=r.timeout,
+            effort=r.effort,
+            system_prompt=r.system_prompt,
+            **images,
+        )
+    effort, reasoning = r.effort, r.reasoning
+    if r.provider == LM_STUDIO and r.lm_native:
+        import lmstudio_support
+
+        native = lmstudio_support.answer(
+            r.base,
+            r.key,
+            r.model,
+            r.prompt,
+            r.system_prompt,
+            r.cancel,
+            r.emit,
+            r.on_usage,
+            r.timeout,
+            r.output_limit,
+            r.thinking_policy,
+            r.session_key,
+            r.images,
+        )
+        if native:
+            return native
+        if r.on_status:
+            r.on_status('当前 LM Studio 不支持原生会话接口；使用完整上下文兼容模式，思考由本地服务控制。')
+        effort, reasoning, images = '服务默认', False, {'images': r.images}
+    return a.compatible_answer(
+        r.provider,
+        r.transcript,
+        r.key,
+        r.model,
+        r.instructions,
+        r.cancel,
+        r.emit,
+        reasoning=reasoning,
+        base=r.base,
+        on_usage=r.on_usage,
+        max_output=r.output_limit,
+        total_timeout=r.timeout,
+        effort=effort,
+        system_prompt=r.system_prompt,
+        **images,
+    )
+
+
 def read_cli_models(name, *, details=False):
+    """Read a CLI provider's model catalog in the shared list order.
+
+    Returns (models, extra): extra is Codex's per-model capability list when
+    details=True, or Antigravity's raw catalog text when no ID could be parsed.
+    'default' is dropped because every picker already offers the provider default.
+    """
+    from model_catalog import arrange
+
+    models, extra = _read_cli_models(name, details=details)
+    return arrange(models, drop=('default',)), extra
+
+
+def _read_cli_models(name, *, details=False):
     """Read a CLI provider's model catalog.
 
     Returns (models, extra): extra is Codex's per-model capability list when
     details=True, or Antigravity's raw catalog text when no ID could be parsed.
     """
     import audio_answer as a
+
     if name == KIRO:
         from kiro_support import read_model_catalog
+
         return read_model_catalog(a.ROOT), None
     if name == CLAUDE:
         from claude_support import read_model_catalog
+
         return read_model_catalog(a.ROOT), None
     if name == CODEX:
         if details:
@@ -155,6 +344,7 @@ def read_cli_models(name, *, details=False):
         return a.read_codex_account(a.find_codex(), a.WORK, models_only=True), None
     if name == ANTIGRAVITY:
         from antigravity_support import find_antigravity
+
         raw = a.run_process([find_antigravity(), 'models'], threading.Event(), timeout=30)
         models = list(dict.fromkeys(re.findall(r'\b(?:gemini|claude|gpt)-[A-Za-z0-9._-]+', raw)))
         return models, (None if models else raw)

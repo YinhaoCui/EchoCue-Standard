@@ -1,4 +1,8 @@
 """Asynchronous caption translation; original transcripts never leave their source buffer."""
+
+import app_log
+
+
 from collections import deque
 import re
 import threading
@@ -7,15 +11,16 @@ import uuid
 
 HEADER = re.compile(r'(?m)^(\[\d{2}:\d{2}:\d{2} (?:电脑|麦克风|System audio|Microphone)(?: · Speaker \d+)?\]\n)')
 BATCH_DEADLINE = 1.5
-PREVIEW_STABILITY = .5
+PREVIEW_STABILITY = 0.5
 PREVIEW_INTERVAL = 1.0
 PREVIEW_MAX_CHARS = 400
 
 
 def display_transcript(text):
     """Hide capture-device labels in the reading view, retaining saved source metadata."""
-    return re.sub(r'(?m)^(\[\d{2}:\d{2}:\d{2}) (?:电脑|麦克风|System audio|Microphone)((?: · Speaker \d+)?\])',
-                  r'\1\2', text)
+    return re.sub(
+        r'(?m)^(\[\d{2}:\d{2}:\d{2}) (?:电脑|麦克风|System audio|Microphone)((?: · Speaker \d+)?\])', r'\1\2', text
+    )
 
 
 class CaptionPresenter:
@@ -48,14 +53,17 @@ class CaptionPresenter:
         if not text.strip():
             return text
         language = self.app.content_language('caption')
-        if language == 'original':return text
+        if language == 'original':
+            return text
         has_chinese = bool(re.search(r'[\u3400-\u9fff]', text))
         # ASR may leave product names in Chinese speech; keep those intact.
-        if (language == 'en' and not has_chinese) or (language == 'zh' and has_chinese and len(re.findall(r'[A-Za-z]+', text)) < 4):
+        if (language == 'en' and not has_chinese) or (
+            language == 'zh' and has_chinese and len(re.findall(r'[A-Za-z]+', text)) < 4
+        ):
             return text
         if not re.search(r'[A-Za-z\u3400-\u9fff]', text):
             return text
-        text=text.strip()
+        text = text.strip()
         key = (language, text)
         if draft and source is not None:
             return self.preview(text, language, source, generation)
@@ -93,15 +101,17 @@ class CaptionPresenter:
     def preview_refresh(self, delay):
         if getattr(self.app, 'closing', False):
             return
-        due = time.monotonic() + max(.02, delay)
+        due = time.monotonic() + max(0.02, delay)
         if self.preview_timer is not None:
             if self.preview_due <= due:
                 return
             self.app.root.after_cancel(self.preview_timer)
         self.preview_due = due
+
         def refresh():
             self.preview_timer = self.preview_due = None
             self.refresh()
+
         self.preview_timer = self.app.root.after(max(20, int(delay * 1000)), refresh)
 
     def discard_queued_preview(self, source):
@@ -125,9 +135,19 @@ class CaptionPresenter:
         state = self.previews.get(source)
         if state is None or (state['generation'], state['language']) != (generation, language):
             self.discard_queued_preview(source)
-            state = self.previews[source] = dict(generation=generation, language=language, anchor=text,
-                                                  text=text, since=now, last=-1e9, key=None, shown=None,
-                                                  revision=0, shown_revision=-1, submitted_anchor=None)
+            state = self.previews[source] = dict(
+                generation=generation,
+                language=language,
+                anchor=text,
+                text=text,
+                since=now,
+                last=-1e9,
+                key=None,
+                shown=None,
+                revision=0,
+                shown_revision=-1,
+                submitted_anchor=None,
+            )
         elif text != state['text']:
             anchor = state['anchor']
             count = 0
@@ -137,8 +157,14 @@ class CaptionPresenter:
                 count += 1
             prefix = text[:count]
             # Do not stabilize the middle of a changing English word.
-            if (prefix and count < len(text) and prefix[-1].isascii() and prefix[-1].isalnum()
-                    and text[count].isascii() and text[count].isalnum()):
+            if (
+                prefix
+                and count < len(text)
+                and prefix[-1].isascii()
+                and prefix[-1].isalnum()
+                and text[count].isascii()
+                and text[count].isalnum()
+            ):
                 prefix = re.sub(r'\S+$', '', prefix)
             if prefix.strip() != anchor:
                 state['anchor'], state['since'] = prefix.strip(), now
@@ -156,9 +182,13 @@ class CaptionPresenter:
             if delay <= 0:
                 # Bound repeated previews; the finalized source is always translated in full.
                 candidate = anchor[-PREVIEW_MAX_CHARS:]
-                if (len(anchor) > PREVIEW_MAX_CHARS and anchor[-PREVIEW_MAX_CHARS - 1].isascii()
-                        and anchor[-PREVIEW_MAX_CHARS - 1].isalnum()
-                        and candidate[0].isascii() and candidate[0].isalnum()):
+                if (
+                    len(anchor) > PREVIEW_MAX_CHARS
+                    and anchor[-PREVIEW_MAX_CHARS - 1].isascii()
+                    and anchor[-PREVIEW_MAX_CHARS - 1].isalnum()
+                    and candidate[0].isascii()
+                    and candidate[0].isalnum()
+                ):
                     candidate = re.sub(r'^\S*\s*', '', candidate) or candidate
                 key = (language, candidate)
                 if state['key'] != key:
@@ -193,6 +223,7 @@ class CaptionPresenter:
     def transcript(self, text):
         # Translate stable sentence groups, rather than each short ASR endpoint.
         from live_transcription import append_transcript
+
         with self.app.live.lock:
             records = list(self.app.live.records)
         original, translated, source, translated_source = '', '', None, None
@@ -201,17 +232,23 @@ class CaptionPresenter:
                 original, source = append_transcript(original, source, record)
                 if original == text and getattr(self.app, 'follow_live', True):
                     # ASR may have finalized more records than the UI has consumed.
-                    records = records[:index + 1]
+                    records = records[: index + 1]
                     break
             if original == text:
-                grouped = records if self.app.content_language('caption') == 'original' else self.record_batches(records)
+                grouped = (
+                    records if self.app.content_language('caption') == 'original' else self.record_batches(records)
+                )
                 for record in grouped:
-                    body = self.body(record.get('body', record['text'].split('\n', 1)[-1]),
-                                     draft=not record.get('caption_ready', True))
+                    body = self.body(
+                        record.get('body', record['text'].split('\n', 1)[-1]),
+                        draft=not record.get('caption_ready', True),
+                    )
                     header = record['text'].split('\n', 1)[0]
-                    view = dict(record, body=body, text=self.app.locale.t(header)+'\n'+body)
+                    view = dict(record, body=body, text=self.app.locale.t(header) + '\n' + body)
                     separator = '\n\n' if self.app.content_language('caption') == 'bilingual' else ' '
-                    translated, translated_source = append_transcript(translated, translated_source, view, separator=separator)
+                    translated, translated_source = append_transcript(
+                        translated, translated_source, view, separator=separator
+                    )
                 return translated
         parts = HEADER.split(text)
         return ''.join(self.app.locale.t(part) if HEADER.fullmatch(part) else self.body(part) for part in parts)
@@ -220,11 +257,11 @@ class CaptionPresenter:
         now = time.monotonic()
         signatures = [(r.get('source'), r.get('speaker'), r['text'], r.get('body')) for r in records]
         # Edits and session restores invalidate grouping, never the source records.
-        if signatures[:len(self.batch_records)] != self.batch_records:
+        if signatures[: len(self.batch_records)] != self.batch_records:
             self.batches.clear()
             self.open_batches.clear()
             self.batch_records.clear()
-        for record in records[len(self.batch_records):]:
+        for record in records[len(self.batch_records) :]:
             source = record.get('source')
             body = record.get('body', record['text'].split('\n', 1)[-1]).strip()
             index = self.open_batches.get(source)
@@ -242,37 +279,52 @@ class CaptionPresenter:
                 batch['updated_at'] = now
             batch = self.batches[index]
             value = batch['body']
-            if (re.search(r'[.!?。！？][\s\"\'”’）)]*$', value)
-                    or len(re.findall(r'[A-Za-z0-9]+', value)) >= 14
-                    or len(re.findall(r'[\u3400-\u9fff]', value)) >= 40
-                    or len(value) >= 400 or not record.get('ok', True)):
+            if (
+                re.search(r'[.!?。！？][\s\"\'”’）)]*$', value)
+                or len(re.findall(r'[A-Za-z0-9]+', value)) >= 14
+                or len(re.findall(r'[\u3400-\u9fff]', value)) >= 40
+                or len(value) >= 400
+                or not record.get('ok', True)
+            ):
                 batch['caption_ready'] = True
                 self.open_batches.pop(source)
         self.batch_records = signatures
         with self.app.live.lock:
             active = {source for source, state in getattr(self.app.live, 'sources', {}).items() if state.get('data')}
-            pending = (getattr(self.app.live, 'submitted', 0) > getattr(self.app.live, 'completed', 0)
-                       or len(records) < len(self.app.live.records))
+            pending = getattr(self.app.live, 'submitted', 0) > getattr(self.app.live, 'completed', 0) or len(
+                records
+            ) < len(self.app.live.records)
         active.update(getattr(self.app, 'live_drafts', {}))
-        listening = any(device.active() for device in (getattr(self.app, 'capture', None), getattr(self.app, 'mic', None))
-                        if device is not None)
+        listening = any(
+            device.active()
+            for device in (getattr(self.app, 'capture', None), getattr(self.app, 'mic', None))
+            if device is not None
+        )
         for source, index in list(self.open_batches.items()):
             batch = self.batches[index]
-            if (now - batch['created_at'] >= BATCH_DEADLINE
-                    or (not pending and (not listening or (source not in active and now - batch['updated_at'] >= 1.2)))):
+            if now - batch['created_at'] >= BATCH_DEADLINE or (
+                not pending and (not listening or (source not in active and now - batch['updated_at'] >= 1.2))
+            ):
                 batch['caption_ready'] = True
                 self.open_batches.pop(source)
         if self.batch_timer is not None:
             self.app.root.after_cancel(self.batch_timer)
             self.batch_timer = None
         if self.open_batches and not getattr(self.app, 'closing', False):
-            delay = min(min(max(.02, BATCH_DEADLINE - (now - self.batches[index]['created_at'])),
-                            max(.02, 1.2 - (now - self.batches[index]['updated_at']))
-                            if source not in active and not pending else BATCH_DEADLINE)
-                        for source, index in self.open_batches.items())
+            delay = min(
+                min(
+                    max(0.02, BATCH_DEADLINE - (now - self.batches[index]['created_at'])),
+                    max(0.02, 1.2 - (now - self.batches[index]['updated_at']))
+                    if source not in active and not pending
+                    else BATCH_DEADLINE,
+                )
+                for source, index in self.open_batches.items()
+            )
+
             def flush():
                 self.batch_timer = None
                 self.refresh()
+
             self.batch_timer = self.app.root.after(max(1, int(delay * 1000)), flush)
         return [dict(batch, text=batch['text'].split('\n', 1)[0] + '\n' + batch['body']) for batch in self.batches]
 
@@ -294,7 +346,9 @@ class CaptionPresenter:
             self.preview_keys.pop(key, None)
             self.pending.discard(key)
             self.failed.add(key)
-            self.cache[key] = self.notice('[Translation unavailable: configure a model in Settings]', '[翻译不可用：请在设置中配置模型]')
+            self.cache[key] = self.notice(
+                '[Translation unavailable: configure a model in Settings]', '[翻译不可用：请在设置中配置模型]'
+            )
             self.app.root.after_idle(self.start_next)
             return
         cancel = threading.Event()
@@ -303,21 +357,27 @@ class CaptionPresenter:
         self.active_key = key
         self.workers[key] = cancel
         english_bilingual = key[0] == 'bilingual' and not re.search(r'[\u3400-\u9fff]', key[1])
+
         def formatted(text):
             return key[1] + '\n中文：' + text if english_bilingual else text
+
         def partial(text):
             self.app.events.put(('caption_partial', (epoch, key, formatted(text))))
+
         def work():
             # The English source is already visible; do not generate it a second time.
             try:
-                result = formatted(translate(inputs, key[1], 'zh' if english_bilingual else key[0], cancel, self.app,
-                                             on_partial=partial))
+                result = formatted(
+                    translate(
+                        inputs, key[1], 'zh' if english_bilingual else key[0], cancel, self.app, on_partial=partial
+                    )
+                )
                 error = None
             except Exception as exc:
-                result, error = '', str(exc)
-                if inputs['key']:
-                    error = error.replace(inputs['key'], '[KEY]')
+                result, error = '', app_log.redact(exc, inputs['key'])
+                app_log.get('captions').warning('Caption translation failed: %s', error)
             self.app.events.put(('caption_result', (epoch, key, result, error)))
+
         threading.Thread(target=work, daemon=True, name='caption-translation').start()
         self.start_next()
 
@@ -360,9 +420,21 @@ class CaptionPresenter:
         partial = self.partials.pop(key, '')
         if error and partial:
             partial = partial.removeprefix(key[1] + '\n中文：')
-            self.cache[key] = partial + '\n' + self.notice('[Incomplete translation; change transcript language to retry]', '[翻译未完成；切换转录语言可重试]')
+            self.cache[key] = (
+                partial
+                + '\n'
+                + self.notice(
+                    '[Incomplete translation; change transcript language to retry]', '[翻译未完成；切换转录语言可重试]'
+                )
+            )
         else:
-            self.cache[key] = text if not error else self.notice('[Translation failed; change transcript language to retry]', '[翻译失败；切换转录语言可重试]')
+            self.cache[key] = (
+                text
+                if not error
+                else self.notice(
+                    '[Translation failed; change transcript language to retry]', '[翻译失败；切换转录语言可重试]'
+                )
+            )
         if error:
             self.failed.add(key)
             self.app.status.set(self.notice('Caption translation: ', '字幕翻译：') + error)
@@ -371,7 +443,12 @@ class CaptionPresenter:
 
     def receive_partial(self, result):
         epoch, key, text = result
-        if epoch != self.epoch or key not in self.workers or self.workers[key].is_set() or getattr(self.app, 'closing', False):
+        if (
+            epoch != self.epoch
+            or key not in self.workers
+            or self.workers[key].is_set()
+            or getattr(self.app, 'closing', False)
+        ):
             return
         self.partials[key] = text
         self.update_preview(key, text)
@@ -383,14 +460,18 @@ class CaptionPresenter:
             return
         source, generation, revision = owner
         state = self.previews.get(source)
-        if (state is not None and (state['generation'], state['language']) == (generation, key[0])
-                and revision >= state['shown_revision']):
+        if (
+            state is not None
+            and (state['generation'], state['language']) == (generation, key[0])
+            and revision >= state['shown_revision']
+        ):
             state['shown'] = (key, text)
             state['shown_revision'] = revision
 
     def reset(self):
         # Keep successful translations and the active request across language toggles.
-        for key in self.failed:self.cache.pop(key,None)
+        for key in self.failed:
+            self.cache.pop(key, None)
         self.failed.clear()
         self.previews.clear()
         for source in list(self.preview_queue):
@@ -399,7 +480,7 @@ class CaptionPresenter:
             self.app.root.after_cancel(self.preview_timer)
             self.preview_timer = self.preview_due = None
         self.queue.clear()
-        self.pending=set(self.workers) or ({self.active_key} if self.active else set())
+        self.pending = set(self.workers) or ({self.active_key} if self.active else set())
 
     def close(self):
         self.epoch += 1
@@ -426,42 +507,54 @@ class CaptionPresenter:
 def translate(inputs, text, language, cancel, app, on_partial=None):
     """Use the selected transport without borrowing any answer conversation."""
     from web_translation import PROVIDERS as WEB_TRANSLATORS, translate as web_translate
+
     if inputs['provider'] in WEB_TRANSLATORS:
         result = web_translate(inputs['provider'], text, language, cancel)
         if on_partial is not None:
             on_partial(result)
         return result
-    import audio_answer as a
     import providers
+
     provider, model, key = inputs['provider'], inputs['model'], inputs['key']
     options = inputs['options']
     from prompt_language import for_inputs, translation_prompt
-    system = translation_prompt(for_inputs(inputs),language)
+
+    system = translation_prompt(for_inputs(inputs), language)
     prompt = system + '\n<transcript>\n' + text + '\n</transcript>'
     pieces, usage = [], {}
     last_partial = None
+
     def emit(piece):
         nonlocal last_partial
         if cancel.is_set() or not piece:
             return
         pieces.append(piece)
         now = time.monotonic()
-        if on_partial is not None and (last_partial is None or now - last_partial >= .1):
+        if on_partial is not None and (last_partial is None or now - last_partial >= 0.1):
             last_partial = now
             on_partial(''.join(pieces))
+
     report = lambda value: usage.update(value or {})
-    kwargs = dict(on_usage=report, total_timeout=60, effort=inputs['effort'])
     success = False
     try:
-        if providers.is_cli(provider):
-            providers.cli_answer(provider, prompt, options[providers.model_option(provider)], cancel, emit,
-                                 transcript=text, instructions=system, **kwargs)
-        elif provider == 'Gemini':
-            a.gemini_answer(None, key, model, system, cancel, emit, transcript=text,
-                            system_prompt=system, max_output=None, fast=True, **kwargs)
-        else:
-            a.compatible_answer(provider, text, key, model, system, cancel, emit,
-                                base=options['lm_base'], system_prompt=system, max_output=None, reasoning=False, **kwargs)
+        providers.answer(
+            providers.AnswerRequest(
+                provider=provider,
+                model=options[providers.model_option(provider)] if providers.is_cli(provider) else model,
+                cancel=cancel,
+                emit=emit,
+                transcript=text,
+                instructions=system,
+                prompt=prompt,
+                system_prompt=system,
+                key=key,
+                base=options['lm_base'],
+                on_usage=report,
+                timeout=60,
+                effort=inputs['effort'],
+                fast=True,
+            )
+        )
         result = ''.join(pieces).strip()
         if not result or cancel.is_set():
             raise RuntimeError('Translation cancelled or empty')
@@ -471,8 +564,13 @@ def translate(inputs, text, language, cancel, app, on_partial=None):
         return result
     finally:
         try:
-            app.token_ledger.record(app.session_id+':caption-'+uuid.uuid4().hex, provider,
-                                    inputs['display_model'], usage, 'Caption translation' if success else 'Caption translation failed')
+            app.token_ledger.record(
+                app.session_id + ':caption-' + uuid.uuid4().hex,
+                provider,
+                inputs['display_model'],
+                usage,
+                'Caption translation' if success else 'Caption translation failed',
+            )
             app.events.put(('usage_updated', ''))
         except Exception:
             app.events.put(('usage_save_error', 'Token 用量保存失败，本次统计仅在内存。'))

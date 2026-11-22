@@ -2,6 +2,7 @@
 
 Text is cached per image, so each screenshot is read once per run of the app.
 """
+
 import base64
 import hashlib
 from pathlib import Path
@@ -17,9 +18,22 @@ def _read(data, work):
     with tempfile.TemporaryDirectory(dir=work) as folder:
         path = Path(folder) / 'shot.png'
         path.write_bytes(data)
-        result = subprocess.run(['powershell.exe', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
-                                 '-File', str(SCRIPT), '-Path', str(path)],
-                                capture_output=True, timeout=60, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+        result = subprocess.run(
+            [
+                'powershell.exe',
+                '-NoProfile',
+                '-NonInteractive',
+                '-ExecutionPolicy',
+                'Bypass',
+                '-File',
+                str(SCRIPT),
+                '-Path',
+                str(path),
+            ],
+            capture_output=True,
+            timeout=60,
+            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
+        )
     if result.returncode != 0:
         raise RuntimeError('Windows OCR could not read a screenshot.')
     return result.stdout.decode('utf-8', errors='replace').strip()

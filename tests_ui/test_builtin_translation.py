@@ -13,8 +13,16 @@ class BuiltinTranslationUITests(unittest.TestCase):
     def test_native_providers_need_no_key_or_server_controls(self):
         with self.bridge.lock:
             self.bridge.state['options']['caption_provider'] = PROVIDERS[0]
-            self.bridge.state['caption_translation'] = dict(provider=PROVIDERS[0], providers=list(PROVIDERS),
-                dedicated=True, builtin=True, models=[], loading=False, resolved_model='web', status='No API key or DLX needed.')
+            self.bridge.state['caption_translation'] = dict(
+                provider=PROVIDERS[0],
+                providers=list(PROVIDERS),
+                dedicated=True,
+                builtin=True,
+                models=[],
+                loading=False,
+                resolved_model='web',
+                status='No API key or DLX needed.',
+            )
             self.bridge.publish()
         self.page.click('.listen-toolbar [data-view="settings"]')
         self.page.click('[data-section="audio"]')
@@ -24,8 +32,14 @@ class BuiltinTranslationUITests(unittest.TestCase):
             self.page.wait_for_function('(p)=>current.options.caption_provider === p', arg=provider)
             self.assertEqual(self.page.locator('#google-translation-settings, #dlx-settings').count(), 0)
             self.assertNotIn('DLX', self.page.locator('#caption_provider option').all_text_contents())
-            self.assertNotIn('Google Cloud Translation', self.page.locator('#caption_provider option').all_text_contents())
+            self.assertNotIn(
+                'Google Cloud Translation', self.page.locator('#caption_provider option').all_text_contents()
+            )
             self.assertFalse(self.page.is_visible('#caption_model'))
             self.assertNotIn(provider, self.page.locator('#provider option').all_text_contents())
-        self.assertTrue(all('google_translation_key' not in c.get('values', {}) and
-                            'dlx_token' not in c.get('values', {}) for c in self.bridge.commands))
+        self.assertTrue(
+            all(
+                'google_translation_key' not in c.get('values', {}) and 'dlx_token' not in c.get('values', {})
+                for c in self.bridge.commands
+            )
+        )

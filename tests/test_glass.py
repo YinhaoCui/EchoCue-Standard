@@ -1,4 +1,5 @@
 """Local transport access control and controller adapter behavior."""
+
 import json
 import unittest
 import urllib.request
@@ -41,6 +42,7 @@ class GlassTests(unittest.TestCase):
                 request = urllib.request.Request(bridge.url + '/state?' + query, headers=headers)
                 with urllib.request.urlopen(request) as response:
                     return json.loads(response.read())
+
             first = read('wait=0')
             self.assertIn('provider', first['state'])
             self.assertEqual(first['transcript']['text'], 'Long question. ' * 1000)
@@ -58,8 +60,9 @@ class GlassTests(unittest.TestCase):
                     urllib.request.urlopen(urllib.request.Request(bridge.url + '/state', headers=headers))
                 self.assertEqual(error.exception.code, 403)
                 error.exception.close()
-            request = urllib.request.Request(bridge.url + '/command', data=b'{"action":"answer"}',
-                                             headers={'X-Listener-Token': bridge.token})
+            request = urllib.request.Request(
+                bridge.url + '/command', data=b'{"action":"answer"}', headers={'X-Listener-Token': bridge.token}
+            )
             with urllib.request.urlopen(request) as response:
                 self.assertEqual(response.status, 202)
             self.assertEqual(bridge.commands.get_nowait(), {'action': 'answer'})

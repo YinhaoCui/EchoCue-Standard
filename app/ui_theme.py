@@ -1,4 +1,5 @@
 """Linear / Raycast inspired minimalist graphite design system with gamma-correct subpixel anti-aliasing."""
+
 import sys
 import tkinter as tk
 from tkinter import ttk
@@ -11,9 +12,9 @@ _LIN_TO_SRGB = [int(((i / _LIN_STEPS) ** (1.0 / 2.2)) * 255.0 + 0.5) for i in ra
 # 4x4 Rotated Grid Supersampling (RGSS) subpixel offsets within [-0.5, +0.5]
 _RGSS_OFFSETS = (
     (-0.375, -0.125),
-    ( 0.125, -0.375),
-    (-0.125,  0.375),
-    ( 0.375,  0.125),
+    (0.125, -0.375),
+    (-0.125, 0.375),
+    (0.375, 0.125),
 )
 
 
@@ -96,14 +97,20 @@ def render_aa_rounded_rect(master, width, height, radius, fill_hex, border_hex, 
         left = [sample_pixel(x, y) for x in range(corner_span)]
         mid_color = sample_pixel(corner_span, y) if width > 2 * corner_span else left[-1]
         mid_count = max(0, width - 2 * corner_span)
-        right = list(reversed(left)) if width >= 2 * corner_span else [sample_pixel(x, y) for x in range(corner_span, width)]
+        right = (
+            list(reversed(left))
+            if width >= 2 * corner_span
+            else [sample_pixel(x, y) for x in range(corner_span, width)]
+        )
         tokens = left + ([mid_color] * mid_count) + right
         return '{' + ' '.join(tokens[:width]) + '}'
 
     top_rows = [build_row(y) for y in range(row_span)]
     mid_row = build_row(row_span) if height > 2 * row_span else top_rows[-1]
     mid_rows_count = max(0, height - 2 * row_span)
-    bottom_rows = list(reversed(top_rows)) if height >= 2 * row_span else [build_row(y) for y in range(row_span, height)]
+    bottom_rows = (
+        list(reversed(top_rows)) if height >= 2 * row_span else [build_row(y) for y in range(row_span, height)]
+    )
     all_rows = top_rows + ([mid_row] * mid_rows_count) + bottom_rows
     image.put(' '.join(all_rows[:height]))
     return image
@@ -155,6 +162,7 @@ def style_window_chrome(root):
         try:
             import ctypes
             from ctypes import wintypes
+
             user32 = ctypes.WinDLL('user32')
             user32.GetAncestor.argtypes = [wintypes.HWND, wintypes.UINT]
             user32.GetAncestor.restype = wintypes.HWND
@@ -172,9 +180,12 @@ def style_window_chrome(root):
             root._chrome_results = {}
             for attribute, value in values.items():
                 data = wintypes.DWORD(value)
-                root._chrome_results[attribute] = set_attribute(hwnd, attribute, ctypes.byref(data), ctypes.sizeof(data))
+                root._chrome_results[attribute] = set_attribute(
+                    hwnd, attribute, ctypes.byref(data), ctypes.sizeof(data)
+                )
         except (OSError, AttributeError, tk.TclError):
             pass
+
     root.bind('<Map>', apply, add='+')
     root.after_idle(apply)
 
@@ -198,98 +209,180 @@ DANGER = '#e11d48'
 def apply_theme(root):
     style_window_chrome(root)
     root.configure(bg=BACKGROUND)
-    for widget in ('Text','Listbox','Menu'):
-        root.option_add('*'+widget+'.Font', ('Microsoft YaHei UI',10))
-    for key,value in {'background':SURFACE,'foreground':INK,'selectBackground':'#27272a',
-                      'selectForeground':INK}.items():
-        root.option_add('*Listbox.'+key,value)
-    for widget in ('Text','Menu','Canvas'):
-        root.option_add('*'+widget+'.background',SURFACE)
-        root.option_add('*'+widget+'.foreground',INK)
-    root.option_add('*Text.insertBackground',INK)
-    root.option_add('*Text.selectBackground','#27272a')
-    root.option_add('*Menu.activeBackground','#27272a')
-    root.option_add('*Menu.activeForeground',INK)
-    root.option_add('*Toplevel.background',BACKGROUND)
-    root.option_add('*Text.relief','flat')
-    root.option_add('*Text.background','#0c0c0e')
-    root.option_add('*Text.highlightThickness',1)
-    root.option_add('*Text.highlightBackground',BORDER)
-    root.option_add('*Text.highlightColor','#52525b')
-    root.option_add('*Text.padX',10)
-    root.option_add('*Text.padY',8)
-    style=ttk.Style(root);style.theme_use('clam')
-    line=BORDER
-    style.configure('.',font=('Microsoft YaHei UI',10),background=SURFACE,foreground=INK,
-                    bordercolor=line,lightcolor=line,darkcolor=line)
-    for name,color in [('TFrame',SURFACE),('App.TFrame',BACKGROUND),('Nav.TFrame',NAV),('Elevated.TFrame',ELEVATED)]:
-        style.configure(name,background=color)
-    style.configure('Card.TFrame',background=SURFACE,borderwidth=1,relief='solid',
-                    bordercolor=line,lightcolor=line,darkcolor=line)
-    style.configure('Ticker.TFrame',background='#0c0c0e',borderwidth=1,relief='solid',
-                    bordercolor=BORDER,lightcolor=BORDER,darkcolor=BORDER)
-    style.configure('TLabel',background=SURFACE,foreground=INK)
-    style.configure('Heading.TLabel',font=('Microsoft YaHei UI',11,'bold'),foreground=INK)
-    style.configure('Eyebrow.TLabel',font=('Segoe UI',9,'bold'),foreground=MUTED)
-    style.configure('TLabelframe',background=SURFACE,bordercolor=line)
-    style.configure('TLabelframe.Label',background=SURFACE,foreground=INK)
-    style.configure('TScale',background=SURFACE,troughcolor='#27272a')
-    style.configure('TNotebook.Tab',lightcolor=SURFACE,darkcolor=SURFACE)
-    style.configure('PageTitle.TLabel',font=('Microsoft YaHei UI',15,'bold'),foreground=INK)
-    style.configure('Muted.TLabel',foreground=MUTED)
-    style.configure('NavMuted.TLabel',background=NAV,foreground='#a1a1aa',font=('Microsoft YaHei UI',9))
-    style.configure('Footer.TLabel',background=BACKGROUND,foreground=MUTED,font=('Microsoft YaHei UI',9))
-    style.configure('Badge.TLabel',font=('Segoe UI',8),foreground=MUTED,background='#1c1c21',padding=(6,2))
-    style.configure('TickerBadge.TLabel',font=('Microsoft YaHei UI',9,'bold'),foreground=PRIMARY_FG,background=PRIMARY_BG,padding=(6,2))
-    style.configure('TickerText.TLabel',font=('Microsoft YaHei UI',10),foreground=INK,background='#0c0c0e')
-    style.configure('TButton',padding=(10,6),relief='flat',borderwidth=0,foreground=INK,
-                    focusthickness=1,focuscolor='#52525b')
-    style.map('TButton',foreground=[('disabled','#52525b')])
-    for name,fg in [('Primary.TButton',PRIMARY_FG),('Nav.TButton','#d4d4d8'),('NavSelected.TButton','#ffffff'),
-                    ('Stop.TButton','#ffffff'),('Quiet.TButton','#a1a1aa')]:
-        style.configure(name,foreground=fg)
-        style.map(name,foreground=[('disabled','#52525b'),('!disabled',fg)])
-    style.configure('Primary.TButton',font=('Microsoft YaHei UI',10,'bold'))
-    style.configure('Nav.TButton',width=0)
-    style.configure('NavSelected.TButton',width=0,font=('Microsoft YaHei UI',10,'bold'))
-    style.configure('Nav.TMenubutton',width=0,foreground='#d4d4d8',arrowcolor='#a1a1aa',arrowsize=9)
-    style.configure('TCheckbutton',padding=(0,4),indicatorbackground='#0c0c0e',indicatorforeground=PRIMARY_FG)
-    style.map('TCheckbutton',background=[('active',SURFACE)],indicatorbackground=[('selected',PRIMARY_BG),('!selected','#18181c')])
-    for name in ('TEntry','TCombobox'):
-        style.configure(name,padding=6,fieldbackground='#0c0c0e',background='#1c1c21',
-                        bordercolor=line,lightcolor=line,darkcolor=line,arrowsize=11,arrowcolor=MUTED,foreground=INK,insertcolor=INK)
-        style.map(name,bordercolor=[('focus','#52525b')])
-    style.map('TCombobox',fieldbackground=[('readonly','#0c0c0e')],
-              selectbackground=[('readonly','#0c0c0e')],selectforeground=[('readonly',INK)],
-              bordercolor=[('focus','#52525b')])
-    style.configure('TNotebook',background=SURFACE,borderwidth=0,tabmargins=(0,0,0,10),
-                    lightcolor=SURFACE,darkcolor=SURFACE)
-    style.configure('TNotebook.Tab',padding=(12,7),background='#141417',foreground=MUTED,borderwidth=0)
-    style.map('TNotebook.Tab',background=[('selected','#27272a'),('active','#1c1c21')],
-              foreground=[('selected','#ffffff'),('active','#e4e4e7')])
-    style.configure('Horizontal.TProgressbar',background='#e4e4e7',troughcolor='#1c1c21',borderwidth=0,thickness=4)
-    style.layout('Vertical.TScrollbar',[('Vertical.Scrollbar.trough',{'sticky':'ns','children':[
-        ('Vertical.Scrollbar.thumb',{'expand':'1','sticky':'nswe'})]})])
-    style.configure('Vertical.TScrollbar',background='#27272a',troughcolor='#0c0c0e',borderwidth=0,
-                    bordercolor='#0c0c0e',lightcolor='#27272a',darkcolor='#27272a',arrowsize=8,width=7)
-    style.map('Vertical.TScrollbar',background=[('pressed','#71717a'),('active','#3f3f46')])
-    style.configure('TPanedwindow',background=BACKGROUND,sashwidth=6)
-    style.configure('Treeview',rowheight=32,fieldbackground=SURFACE,background=SURFACE,foreground=INK)
-    style.map('Treeview',background=[('selected','#27272a')],foreground=[('selected',INK)])
-    apply_rounded_buttons(root,style)
+    for widget in ('Text', 'Listbox', 'Menu'):
+        root.option_add('*' + widget + '.Font', ('Microsoft YaHei UI', 10))
+    for key, value in {
+        'background': SURFACE,
+        'foreground': INK,
+        'selectBackground': '#27272a',
+        'selectForeground': INK,
+    }.items():
+        root.option_add('*Listbox.' + key, value)
+    for widget in ('Text', 'Menu', 'Canvas'):
+        root.option_add('*' + widget + '.background', SURFACE)
+        root.option_add('*' + widget + '.foreground', INK)
+    root.option_add('*Text.insertBackground', INK)
+    root.option_add('*Text.selectBackground', '#27272a')
+    root.option_add('*Menu.activeBackground', '#27272a')
+    root.option_add('*Menu.activeForeground', INK)
+    root.option_add('*Toplevel.background', BACKGROUND)
+    root.option_add('*Text.relief', 'flat')
+    root.option_add('*Text.background', '#0c0c0e')
+    root.option_add('*Text.highlightThickness', 1)
+    root.option_add('*Text.highlightBackground', BORDER)
+    root.option_add('*Text.highlightColor', '#52525b')
+    root.option_add('*Text.padX', 10)
+    root.option_add('*Text.padY', 8)
+    style = ttk.Style(root)
+    style.theme_use('clam')
+    line = BORDER
+    style.configure(
+        '.',
+        font=('Microsoft YaHei UI', 10),
+        background=SURFACE,
+        foreground=INK,
+        bordercolor=line,
+        lightcolor=line,
+        darkcolor=line,
+    )
+    for name, color in [
+        ('TFrame', SURFACE),
+        ('App.TFrame', BACKGROUND),
+        ('Nav.TFrame', NAV),
+        ('Elevated.TFrame', ELEVATED),
+    ]:
+        style.configure(name, background=color)
+    style.configure(
+        'Card.TFrame',
+        background=SURFACE,
+        borderwidth=1,
+        relief='solid',
+        bordercolor=line,
+        lightcolor=line,
+        darkcolor=line,
+    )
+    style.configure(
+        'Ticker.TFrame',
+        background='#0c0c0e',
+        borderwidth=1,
+        relief='solid',
+        bordercolor=BORDER,
+        lightcolor=BORDER,
+        darkcolor=BORDER,
+    )
+    style.configure('TLabel', background=SURFACE, foreground=INK)
+    style.configure('Heading.TLabel', font=('Microsoft YaHei UI', 11, 'bold'), foreground=INK)
+    style.configure('Eyebrow.TLabel', font=('Segoe UI', 9, 'bold'), foreground=MUTED)
+    style.configure('TLabelframe', background=SURFACE, bordercolor=line)
+    style.configure('TLabelframe.Label', background=SURFACE, foreground=INK)
+    style.configure('TScale', background=SURFACE, troughcolor='#27272a')
+    style.configure('TNotebook.Tab', lightcolor=SURFACE, darkcolor=SURFACE)
+    style.configure('PageTitle.TLabel', font=('Microsoft YaHei UI', 15, 'bold'), foreground=INK)
+    style.configure('Muted.TLabel', foreground=MUTED)
+    style.configure('NavMuted.TLabel', background=NAV, foreground='#a1a1aa', font=('Microsoft YaHei UI', 9))
+    style.configure('Footer.TLabel', background=BACKGROUND, foreground=MUTED, font=('Microsoft YaHei UI', 9))
+    style.configure('Badge.TLabel', font=('Segoe UI', 8), foreground=MUTED, background='#1c1c21', padding=(6, 2))
+    style.configure(
+        'TickerBadge.TLabel',
+        font=('Microsoft YaHei UI', 9, 'bold'),
+        foreground=PRIMARY_FG,
+        background=PRIMARY_BG,
+        padding=(6, 2),
+    )
+    style.configure('TickerText.TLabel', font=('Microsoft YaHei UI', 10), foreground=INK, background='#0c0c0e')
+    style.configure(
+        'TButton', padding=(10, 6), relief='flat', borderwidth=0, foreground=INK, focusthickness=1, focuscolor='#52525b'
+    )
+    style.map('TButton', foreground=[('disabled', '#52525b')])
+    for name, fg in [
+        ('Primary.TButton', PRIMARY_FG),
+        ('Nav.TButton', '#d4d4d8'),
+        ('NavSelected.TButton', '#ffffff'),
+        ('Stop.TButton', '#ffffff'),
+        ('Quiet.TButton', '#a1a1aa'),
+    ]:
+        style.configure(name, foreground=fg)
+        style.map(name, foreground=[('disabled', '#52525b'), ('!disabled', fg)])
+    style.configure('Primary.TButton', font=('Microsoft YaHei UI', 10, 'bold'))
+    style.configure('Nav.TButton', width=0)
+    style.configure('NavSelected.TButton', width=0, font=('Microsoft YaHei UI', 10, 'bold'))
+    style.configure('Nav.TMenubutton', width=0, foreground='#d4d4d8', arrowcolor='#a1a1aa', arrowsize=9)
+    style.configure('TCheckbutton', padding=(0, 4), indicatorbackground='#0c0c0e', indicatorforeground=PRIMARY_FG)
+    style.map(
+        'TCheckbutton',
+        background=[('active', SURFACE)],
+        indicatorbackground=[('selected', PRIMARY_BG), ('!selected', '#18181c')],
+    )
+    for name in ('TEntry', 'TCombobox'):
+        style.configure(
+            name,
+            padding=6,
+            fieldbackground='#0c0c0e',
+            background='#1c1c21',
+            bordercolor=line,
+            lightcolor=line,
+            darkcolor=line,
+            arrowsize=11,
+            arrowcolor=MUTED,
+            foreground=INK,
+            insertcolor=INK,
+        )
+        style.map(name, bordercolor=[('focus', '#52525b')])
+    style.map(
+        'TCombobox',
+        fieldbackground=[('readonly', '#0c0c0e')],
+        selectbackground=[('readonly', '#0c0c0e')],
+        selectforeground=[('readonly', INK)],
+        bordercolor=[('focus', '#52525b')],
+    )
+    style.configure(
+        'TNotebook', background=SURFACE, borderwidth=0, tabmargins=(0, 0, 0, 10), lightcolor=SURFACE, darkcolor=SURFACE
+    )
+    style.configure('TNotebook.Tab', padding=(12, 7), background='#141417', foreground=MUTED, borderwidth=0)
+    style.map(
+        'TNotebook.Tab',
+        background=[('selected', '#27272a'), ('active', '#1c1c21')],
+        foreground=[('selected', '#ffffff'), ('active', '#e4e4e7')],
+    )
+    style.configure('Horizontal.TProgressbar', background='#e4e4e7', troughcolor='#1c1c21', borderwidth=0, thickness=4)
+    style.layout(
+        'Vertical.TScrollbar',
+        [
+            (
+                'Vertical.Scrollbar.trough',
+                {'sticky': 'ns', 'children': [('Vertical.Scrollbar.thumb', {'expand': '1', 'sticky': 'nswe'})]},
+            )
+        ],
+    )
+    style.configure(
+        'Vertical.TScrollbar',
+        background='#27272a',
+        troughcolor='#0c0c0e',
+        borderwidth=0,
+        bordercolor='#0c0c0e',
+        lightcolor='#27272a',
+        darkcolor='#27272a',
+        arrowsize=8,
+        width=7,
+    )
+    style.map('Vertical.TScrollbar', background=[('pressed', '#71717a'), ('active', '#3f3f46')])
+    style.configure('TPanedwindow', background=BACKGROUND, sashwidth=6)
+    style.configure('Treeview', rowheight=32, fieldbackground=SURFACE, background=SURFACE, foreground=INK)
+    style.map('Treeview', background=[('selected', '#27272a')], foreground=[('selected', INK)])
+    apply_rounded_buttons(root, style)
 
 
-def apply_rounded_buttons(root,style):
+def apply_rounded_buttons(root, style):
     """Generate gamma-correct 4xRGSS anti-aliased 6px micro-rounded Nine-Patch textures."""
-    images=[]
-    palettes={
-        'TButton':('#1c1c21','#2e2e34','#27272a','#3f3f46','#141417','#141417',SURFACE),
-        'Primary.TButton':('#f4f4f5','#ffffff','#ffffff','#ffffff','#d4d4d8','#27272a',SURFACE),
-        'Nav.TButton':('#16161a','#242429','#222228','#3f3f46','#111114','#141417',NAV),
-        'NavSelected.TButton':('#27272a','#52525b','#303036','#71717a','#1c1c21','#18181c',NAV),
-        'Stop.TButton':('#be123c','#e11d48','#e11d48','#f43f5e','#9f1239','#3f2028',NAV),
-        'Quiet.TButton':('#16161a','#222228','#222228','#383842','#121215','#141417',SURFACE),
-        'Nav.TMenubutton':('#16161a','#242429','#222228','#3f3f46','#111114','#141417',NAV),
+    images = []
+    palettes = {
+        'TButton': ('#1c1c21', '#2e2e34', '#27272a', '#3f3f46', '#141417', '#141417', SURFACE),
+        'Primary.TButton': ('#f4f4f5', '#ffffff', '#ffffff', '#ffffff', '#d4d4d8', '#27272a', SURFACE),
+        'Nav.TButton': ('#16161a', '#242429', '#222228', '#3f3f46', '#111114', '#141417', NAV),
+        'NavSelected.TButton': ('#27272a', '#52525b', '#303036', '#71717a', '#1c1c21', '#18181c', NAV),
+        'Stop.TButton': ('#be123c', '#e11d48', '#e11d48', '#f43f5e', '#9f1239', '#3f2028', NAV),
+        'Quiet.TButton': ('#16161a', '#222228', '#222228', '#383842', '#121215', '#141417', SURFACE),
+        'Nav.TMenubutton': ('#16161a', '#242429', '#222228', '#3f3f46', '#111114', '#141417', NAV),
     }
     size = 24
     radius = 5.5
@@ -299,26 +392,67 @@ def apply_rounded_buttons(root,style):
         images.append(img)
         return img
 
-    for name,(fn,bn,fh,bh,fp,fd,bg) in palettes.items():
+    for name, (fn, bn, fh, bh, fp, fd, bg) in palettes.items():
         normal = micro_rect(fn, bn, bg)
         hover = micro_rect(fh, bh, bg)
         pressed = micro_rect(fp, bn, bg)
         disabled = micro_rect(fd, '#222226', bg)
-        element='Pill.'+name
-        style.element_create(element,'image',normal,('disabled',disabled),('pressed',pressed),('active',hover),('focus',hover),
-                             border=(7,7,7,7),sticky='nsew')
-        children=[('Button.padding',{'sticky':'nsew','children':[('Button.label',{'sticky':'nsew'})]})]
+        element = 'Pill.' + name
+        style.element_create(
+            element,
+            'image',
+            normal,
+            ('disabled', disabled),
+            ('pressed', pressed),
+            ('active', hover),
+            ('focus', hover),
+            border=(7, 7, 7, 7),
+            sticky='nsew',
+        )
+        children = [('Button.padding', {'sticky': 'nsew', 'children': [('Button.label', {'sticky': 'nsew'})]})]
         if name.endswith('TMenubutton'):
-            children=[('Menubutton.padding',{'sticky':'nsew','children':[
-                ('Menubutton.indicator',{'side':'right','sticky':''}),('Menubutton.label',{'sticky':'nsew'})]})]
-        style.layout(name,[(element,{'sticky':'nsew','children':children})])
-        style.configure(name,padding=(10,6))
+            children = [
+                (
+                    'Menubutton.padding',
+                    {
+                        'sticky': 'nsew',
+                        'children': [
+                            ('Menubutton.indicator', {'side': 'right', 'sticky': ''}),
+                            ('Menubutton.label', {'sticky': 'nsew'}),
+                        ],
+                    },
+                )
+            ]
+        style.layout(name, [(element, {'sticky': 'nsew', 'children': children})])
+        style.configure(name, padding=(10, 6))
 
     tab_normal = micro_rect('#141417', '#222228', SURFACE)
     tab_selected = micro_rect('#27272a', '#46464f', SURFACE)
     tab_hover = micro_rect('#1c1c21', '#32323a', SURFACE)
-    style.element_create('Segment.tab','image',tab_normal,('selected',tab_selected),('active',tab_hover),('focus',tab_hover),border=(7,7,7,7),sticky='nsew')
-    style.layout('TNotebook.Tab',[('Segment.tab',{'sticky':'nsew','children':[('Notebook.padding',{'sticky':'nsew','children':[('Notebook.label',{'sticky':'nsew'})]})]})])
-    style.configure('TNotebook',bordercolor=SURFACE)
-    style.configure('TNotebook.Tab',padding=(11,6))
-    root._button_images=images
+    style.element_create(
+        'Segment.tab',
+        'image',
+        tab_normal,
+        ('selected', tab_selected),
+        ('active', tab_hover),
+        ('focus', tab_hover),
+        border=(7, 7, 7, 7),
+        sticky='nsew',
+    )
+    style.layout(
+        'TNotebook.Tab',
+        [
+            (
+                'Segment.tab',
+                {
+                    'sticky': 'nsew',
+                    'children': [
+                        ('Notebook.padding', {'sticky': 'nsew', 'children': [('Notebook.label', {'sticky': 'nsew'})]})
+                    ],
+                },
+            )
+        ],
+    )
+    style.configure('TNotebook', bordercolor=SURFACE)
+    style.configure('TNotebook.Tab', padding=(11, 6))
+    root._button_images = images

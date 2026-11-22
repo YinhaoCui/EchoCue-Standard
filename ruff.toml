@@ -1,0 +1,22 @@
+# Lint and format settings: uvx ruff@0.14.0 check . && uvx ruff@0.14.0 format --check .
+line-length = 120
+target-version = "py314"
+extend-exclude = ["vendor", "runtime", "dist", "build", "work", "data"]
+
+[lint]
+# Pyflakes, syntax errors and a small set of bug-prone patterns.
+select = ["F", "E9", "B006", "B008", "B904"]
+ignore = ["B904"]
+
+[lint.per-file-ignores]
+# Tests import app modules after adjusting sys.path.
+"tests/*" = ["F401"]
+# Compatibility facade: tests and answer_jobs reach provider functions through it.
+"app/audio_answer.py" = ["F401"]
+# Import probes and sys.path side effects.
+"tools/smoke_release.py" = ["F401"]
+"tools/verify_speaker_model.py" = ["F401"]
+
+[format]
+quote-style = "preserve"
+line-ending = "lf"

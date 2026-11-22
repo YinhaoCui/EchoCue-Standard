@@ -12,8 +12,19 @@ class ListenLayoutTests(unittest.TestCase):
         self.assertEqual(listen_layout(None), '')
 
     def test_layout_rejects_bad_values(self):
-        for bad in ('80', '80,240,1,1', '80,240,0,0,0,0', 'a,b', '10,240', '80,50', 'inf,240', 'nan,240',
-                    '80,99999', '80,240,100', '0,0,700,100,900'):
+        for bad in (
+            '80',
+            '80,240,1,1',
+            '80,240,0,0,0,0',
+            'a,b',
+            '10,240',
+            '80,50',
+            'inf,240',
+            'nan,240',
+            '80,99999',
+            '80,240,100',
+            '0,0,700,100,900',
+        ):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 listen_layout(bad)
 
@@ -22,6 +33,7 @@ class ListenLayoutTests(unittest.TestCase):
 
     def test_color_format(self):
         from glass_bridge import COLOR
+
         for good in ('#ffffff', '#213953', '#00aa7f'):
             self.assertTrue(COLOR.fullmatch(good))
         for bad in ('ffffff', '#fff', '#12345g', 'red', '#1234567', 'url(x)'):

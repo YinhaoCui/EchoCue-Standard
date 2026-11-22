@@ -1,4 +1,5 @@
 """Meeting policy boundaries, acoustic safeguards and application integration."""
+
 import threading
 import time
 import tempfile
@@ -41,11 +42,15 @@ class PolicyTests(unittest.TestCase):
         self.assertEqual(policy.pending[0], 3)
 
     def test_source_and_speaker_grouping_preserved_in_snapshot(self):
-        records = [dict(sequence=i, source='电脑', speaker=voice, body=text,
-                        text=f'[12:00:00 电脑 · {voice}]\n{text}')
-                   for i, voice, text in [(1, 'Speaker 1', 'hello'), (2, 'Speaker 1', 'again'), (3, 'Speaker 2', 'reply')]]
-        self.assertEqual(record_text(records), '[12:00:00 电脑 · Speaker 1]\nhello again\n\n[12:00:00 电脑 · Speaker 2]\nreply')
+        records = [
+            dict(sequence=i, source='电脑', speaker=voice, body=text, text=f'[12:00:00 电脑 · {voice}]\n{text}')
+            for i, voice, text in [(1, 'Speaker 1', 'hello'), (2, 'Speaker 1', 'again'), (3, 'Speaker 2', 'reply')]
+        ]
+        self.assertEqual(
+            record_text(records), '[12:00:00 电脑 · Speaker 1]\nhello again\n\n[12:00:00 电脑 · Speaker 2]\nreply'
+        )
         from caption_translation import HEADER
+
         self.assertEqual(len(HEADER.findall(record_text(records))), 2)
 
     def test_scene_validation_rejects_secrets_and_invalid_attachments(self):
@@ -63,7 +68,7 @@ class AudioTests(unittest.TestCase):
     def test_echo_delay_doubletalk_no_match_and_disabled(self):
         rng = np.random.default_rng(4)
         reference = rng.integers(-8000, 8000, 6000, dtype=np.int16)
-        echo = (reference[1200:1520].astype(np.float32) * .5).astype(np.int16).tobytes()
+        echo = (reference[1200:1520].astype(np.float32) * 0.5).astype(np.int16).tobytes()
         processor = EchoSuppressor()
         processor.process('电脑', reference.tobytes(), True, now=1)
         self.assertEqual(processor.process('麦克风', echo, True, now=1.1), bytes(len(echo)))
@@ -77,7 +82,7 @@ class AudioTests(unittest.TestCase):
     def test_speaker_embeddings_match_only_within_source_and_short_is_unknown(self):
         extractor = Mock()
         extractor.is_ready.return_value = True
-        extractor.compute.side_effect = [[1., 0., 0.], [1., .01, 0.], [0., 1., 0.], [1., 0., 0.]]
+        extractor.compute.side_effect = [[1.0, 0.0, 0.0], [1.0, 0.01, 0.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]]
         speakers = LocalSpeakers('.', extractor=extractor)
         pcm = np.full(16000, 2000, dtype=np.int16).tobytes()
         self.assertIsNone(speakers.identify('电脑', pcm[:100], 16000))
@@ -89,6 +94,7 @@ class AudioTests(unittest.TestCase):
     def test_stream_records_keep_source_and_speaker_and_model_failure_keeps_transcription(self):
         from test_streaming import FakeRecognizer
         from streaming_asr import StreamingLiveTranscriber
+
         live = StreamingLiveTranscriber(a.ROOT, lambda *_: None, factory=lambda _: FakeRecognizer(), rate=1000)
         self.addCleanup(live.close)
         with patch('meeting_audio.LocalSpeakers') as factory:
@@ -111,6 +117,7 @@ class AudioTests(unittest.TestCase):
     def test_missing_speaker_model_does_not_break_transcription(self):
         from test_streaming import FakeRecognizer
         from streaming_asr import StreamingLiveTranscriber
+
         live = StreamingLiveTranscriber(a.ROOT, lambda *_: None, factory=lambda _: FakeRecognizer(), rate=1000)
         self.addCleanup(live.close)
         with patch('meeting_audio.LocalSpeakers', side_effect=RuntimeError('missing model')):
@@ -138,7 +145,9 @@ class MeetingIntegrationTests(unittest.TestCase):
     tearDown = test_sessions.UITests.tearDown
 
     def request(self, action, **values):
-        data = dict(action=action, id=action, version=self.ui.scene_version, context_version=self.ui.context_version, **values)
+        data = dict(
+            action=action, id=action, version=self.ui.scene_version, context_version=self.ui.context_version, **values
+        )
         self.ui.meeting_command(data)
         return self.ui.meeting_result
 
@@ -157,12 +166,16 @@ class MeetingIntegrationTests(unittest.TestCase):
         self.assertTrue(self.request('load_scene', name='work')['ok'])
         self.assertEqual(self.ui.profile, 'my profile')
         with patch('account_support.save_settings') as save:
-            self.ui.meeting_command(dict(action='delete_scene', id='bad', version=-1, context_version=self.ui.context_version, name='work'))
+            self.ui.meeting_command(
+                dict(action='delete_scene', id='bad', version=-1, context_version=self.ui.context_version, name='work')
+            )
             self.assertFalse(self.ui.meeting_result['ok'])
             save.assert_not_called()
 
     def test_quick_action_uses_selected_job_snapshot_without_changing_instructions(self):
-        self.ui.jobs[12] = dict(done=True, completed=True, answer='original answer', transcript='original question', label='test')
+        self.ui.jobs[12] = dict(
+            done=True, completed=True, answer='original answer', transcript='original question', label='test'
+        )
         before = self.ui.instructions.get()
         with patch.object(self.ui, 'ask') as ask:
             self.assertTrue(self.request('quick_answer', job=12, kind='example')['ok'])
@@ -178,6 +191,7 @@ class MeetingIntegrationTests(unittest.TestCase):
 
     def test_recap_waits_for_last_segment_and_deduplicates(self):
         from test_streaming import FakeRecognizer
+
         self.ui.live.factory = lambda _: FakeRecognizer()
         self.ui.live.feed('电脑', b'\x00\x10' * 1200)
         self.ui.finish_recap()
@@ -207,9 +221,11 @@ class MeetingIntegrationTests(unittest.TestCase):
         ui.live.completed = ui.live.submitted = 2
         ui.live.sources = {'电脑': dict(data=10)}
         ui.auto_answers.offer(dict(sequence=1, body='How does a transaction work?', ok=True), 'questions')
+
         def dispatched(**kwargs):
             ui.ask_revision += 1
             return ui.ask_revision
+
         with patch.object(ui, 'ask', side_effect=dispatched) as ask:
             ui.meeting_tick()
             ask.assert_not_called()
@@ -223,8 +239,17 @@ class MeetingIntegrationTests(unittest.TestCase):
         ui = self.ui
         ui.advanced['speaker_labels'].set('1')
         ui.auto_answers.offer(dict(sequence=1, body='How does hashing work?', ok=True), 'questions')
-        payload = {'segment:1': dict(sequence=1, source='电脑', generation=1, speaker='Speaker 5',
-                                    text='[12:00:00 电脑 · Speaker 5]\nquestion', body='question', ok=True)}
+        payload = {
+            'segment:1': dict(
+                sequence=1,
+                source='电脑',
+                generation=1,
+                speaker='Speaker 5',
+                text='[12:00:00 电脑 · Speaker 5]\nquestion',
+                body='question',
+                ok=True,
+            )
+        }
         with patch('meeting_audio.LocalSpeakers') as factory:
             ui.restore_payload(payload)
             ui.live.feed('电脑', b'\x00\x10' * 1200)
@@ -245,11 +270,14 @@ class MeetingIntegrationTests(unittest.TestCase):
         ui = self.ui
         before = ui.instructions.get()
         with patch.object(ui, 'run_request') as run:
-            identity = ui.ask(transcript_override='Question', instruction_override='Use a concrete example', purpose='followup')
+            identity = ui.ask(
+                transcript_override='Question', instruction_override='Use a concrete example', purpose='followup'
+            )
             ui.worker.join(2)
             inputs = run.call_args.args[0]
             self.assertIn('Use a concrete example', inputs['instructions'])
             from answer_jobs import build_prompt
+
             self.assertIn('Use a concrete example', build_prompt(inputs, 'Question'))
             self.assertEqual(ui.jobs[identity]['purpose'], 'followup')
         self.assertEqual(before, ui.instructions.get())
@@ -258,7 +286,11 @@ class MeetingIntegrationTests(unittest.TestCase):
         self.ui.profile = 'private profile'
         self.ui.documents = 'unrelated document'
         self.ui.context_images = [dict(data='invalid image deliberately excluded from recap')]
-        with patch.object(self.ui, 'run_request') as run, patch('providers.accepts_images', return_value=False), patch('image_text.screenshot_text', side_effect=AssertionError('Recap must not OCR screenshots')):
+        with (
+            patch.object(self.ui, 'run_request') as run,
+            patch('providers.accepts_images', return_value=False),
+            patch('image_text.screenshot_text', side_effect=AssertionError('Recap must not OCR screenshots')),
+        ):
             self.ui.ask(transcript_override='meeting transcript', instruction_override='Summarize', purpose='recap')
             self.ui.worker.join(2)
             inputs = run.call_args.args[0]
@@ -270,6 +302,7 @@ class MeetingIntegrationTests(unittest.TestCase):
 
     def test_scene_is_actually_encrypted_and_reloadable(self):
         import account_support
+
         self.ui.scenes_error = ''
         self.ui.scenes = {}
         self.ui.profile = 'private scene fixture'

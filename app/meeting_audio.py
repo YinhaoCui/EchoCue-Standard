@@ -1,16 +1,17 @@
 """Local speaker embeddings and conservative suppression of duplicated playback."""
+
 from collections import deque
 from pathlib import Path
 import threading
 import time
 
-import numpy as np
 
 MODEL = 'runtime/asr/speaker/campplus.onnx'
 
 
 class EchoSuppressor:
     """Only remove near-identical echo; preserve uncertain and double-talk frames."""
+
     def __init__(self, rate=16000):
         self.rate = rate
         self.lock = threading.Lock()
@@ -23,10 +24,12 @@ class EchoSuppressor:
     def process(self, source, pcm, enabled, now=None):
         if not enabled:
             return pcm
+        import numpy as np
+
         now = time.monotonic() if now is None else now
         values = np.frombuffer(pcm, dtype=np.int16).astype(np.float32)
         with self.lock:
-            while self.blocks and self.blocks[0][0] < now - .5:
+            while self.blocks and self.blocks[0][0] < now - 0.5:
                 self.blocks.popleft()
             if source == '电脑':
                 self.blocks.append((now, values))
@@ -35,33 +38,34 @@ class EchoSuppressor:
         if len(values) < 160 or len(reference) < len(values):
             return pcm
         energy = float(values @ values)
-        if energy < len(values) * 100 ** 2:
+        if energy < len(values) * 100**2:
             return pcm
         # Search at most half a second of playback; each callback stays bounded.
         dots = np.correlate(reference, values, mode='valid')
         sums = np.concatenate(([0.0], np.cumsum(reference.astype(np.float64) ** 2)))
-        energies = sums[len(values):] - sums[:-len(values)]
+        energies = sums[len(values) :] - sums[: -len(values)]
         scores = dots / np.sqrt(np.maximum(energies * energy, 1))
         index = int(np.argmax(scores))
         gain = float(dots[index] / max(energies[index], 1))
-        if scores[index] < .995 or not .02 <= gain <= 2:
+        if scores[index] < 0.995 or not 0.02 <= gain <= 2:
             return pcm
-        residual = values - gain * reference[index:index + len(values)]
-        if float(residual @ residual) > energy * .01:
+        residual = values - gain * reference[index : index + len(values)]
+        if float(residual @ residual) > energy * 0.01:
             return pcm  # independent near-end speech must survive
         return bytes(len(pcm))
 
 
 class LocalSpeakers:
     """One dominant voice per finalized segment; embeddings never leave memory."""
+
     def __init__(self, root, first=1, extractor=None):
         if extractor is None:
             import sherpa_onnx
+
             path = Path(root) / MODEL
             if not path.is_file():
                 raise RuntimeError('Speaker model missing. Run tools/setup_streaming.cmd.')
-            config = sherpa_onnx.SpeakerEmbeddingExtractorConfig(
-                model=str(path), num_threads=1, provider='cpu')
+            config = sherpa_onnx.SpeakerEmbeddingExtractorConfig(model=str(path), num_threads=1, provider='cpu')
             if not config.validate():
                 raise RuntimeError('Invalid local speaker model')
             extractor = sherpa_onnx.SpeakerEmbeddingExtractor(config)
@@ -70,8 +74,10 @@ class LocalSpeakers:
         self.next_id = first
 
     def identify(self, source, pcm, rate):
+        import numpy as np
+
         data = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768
-        if len(data) < rate or float(data @ data) < len(data) * .002 ** 2:
+        if len(data) < rate or float(data @ data) < len(data) * 0.002**2:
             return None
         stream = self.extractor.create_stream()
         stream.accept_waveform(sample_rate=rate, waveform=data)
@@ -85,11 +91,11 @@ class LocalSpeakers:
         vector = vector / norm
         known = self.voices.setdefault(source, [])
         ranked = sorted(((float(v @ vector), label, v) for label, v in known), key=lambda x: x[0], reverse=True)
-        if ranked and ranked[0][0] >= .55:
-            if len(ranked) > 1 and ranked[0][0] - ranked[1][0] < .08:
+        if ranked and ranked[0][0] >= 0.55:
+            if len(ranked) > 1 and ranked[0][0] - ranked[1][0] < 0.08:
                 return None
             return ranked[0][1]
-        if (ranked and ranked[0][0] > .40) or len(known) >= 12:
+        if (ranked and ranked[0][0] > 0.40) or len(known) >= 12:
             return None
         label = f'Speaker {self.next_id}'
         self.next_id += 1

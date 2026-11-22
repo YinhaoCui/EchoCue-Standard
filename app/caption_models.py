@@ -1,4 +1,5 @@
 """Independent caption models and dedicated translation services."""
+
 import re
 import threading
 
@@ -12,9 +13,11 @@ CAPTION_PROVIDERS = [*providers.NAMES, *WEB_TRANSLATORS]
 
 def fast_model(provider, models):
     preferred = select_models(provider, models, '快速 / 省钱')
-    candidates = preferred or [model for model in models
-                               if re.search(r'(?:flash|lite|mini|nano|haiku|luna)', model, re.I)
-                               and 'contributor' not in model]
+    candidates = preferred or [
+        model
+        for model in models
+        if re.search(r'(?:flash|lite|mini|nano|haiku|luna)', model, re.I) and 'contributor' not in model
+    ]
     return next(iter(candidates), '')
 
 
@@ -32,8 +35,11 @@ class CaptionModels:
 
     def catalog(self, provider):
         a = self.app
-        return a.cli_models(provider) if providers.is_cli(provider) else select_models(
-            provider, a.discovered_models.get(self.identity(provider)))
+        return (
+            a.cli_models(provider)
+            if providers.is_cli(provider)
+            else select_models(provider, a.discovered_models.get(self.identity(provider)))
+        )
 
     def model(self, provider, models):
         selected = self.app.advanced['caption_model'].get().strip()
@@ -51,12 +57,21 @@ class CaptionModels:
         a = self.app
         provider = self.provider()
         if provider in WEB_TRANSLATORS:
-            return dict(provider=provider, providers=CAPTION_PROVIDERS, models=[], resolved_model='web',
-                        dedicated=True, loading=False, builtin=True,
-                        status=('Built-in online translation · No API key needed. '
-                                'Unofficial interface; availability and rate limits may change.'
-                                if a.locale.language == 'en' else
-                                '内置在线翻译 · 无需 API Key。非官方接口，可能限流或失效。'))
+            return dict(
+                provider=provider,
+                providers=CAPTION_PROVIDERS,
+                models=[],
+                resolved_model='web',
+                dedicated=True,
+                loading=False,
+                builtin=True,
+                status=(
+                    'Built-in online translation · No API key needed. '
+                    'Unofficial interface; availability and rate limits may change.'
+                    if a.locale.language == 'en'
+                    else '内置在线翻译 · 无需 API Key。非官方接口，可能限流或失效。'
+                ),
+            )
         identity = self.identity(provider)
         models = self.catalog(provider)
         model = self.model(provider, models)
@@ -67,15 +82,22 @@ class CaptionModels:
             note += ' ' + self.errors[identity]
         if not providers.is_cli(provider) and provider != providers.LM_STUDIO and not identity[1]:
             note += ' 请先在回答模型的平台设置中填写该平台的 API Key。'
-        return dict(provider=provider, providers=CAPTION_PROVIDERS, models=models, resolved_model=model,
-                    status=a.locale.t(note), loading=identity in self.loading)
+        return dict(
+            provider=provider,
+            providers=CAPTION_PROVIDERS,
+            models=models,
+            resolved_model=model,
+            status=a.locale.t(note),
+            loading=identity in self.loading,
+        )
 
     def inputs(self):
         a = self.app
         provider = self.provider()
         if provider in WEB_TRANSLATORS:
-            return dict(provider=provider, model='web', key='', options={},
-                        effort='服务默认', display_model=provider), None
+            return dict(
+                provider=provider, model='web', key='', options={}, effort='服务默认', display_model=provider
+            ), None
         if provider not in CAPTION_PROVIDERS:
             return None, '未知字幕翻译平台。'
         model = self.model(provider, self.catalog(provider))
@@ -88,6 +110,7 @@ class CaptionModels:
                 return None, '请选择字幕翻译模型或刷新该平台的模型目录。'
             if provider == providers.LM_STUDIO:
                 from session_support import local_base
+
                 try:
                     local_base(options['lm_base'])
                 except ValueError as exc:
@@ -98,13 +121,20 @@ class CaptionModels:
         effort = next((level for level in ('关闭', 'none', 'minimal', 'low') if level in available), '自动')
         if provider == providers.ANTIGRAVITY:
             from antigravity_support import quick_effort, resolve_model
+
             effort = quick_effort(model)
             try:
                 model = options['antigravity_model'] = resolve_model(model, effort)
             except ValueError as exc:
                 return None, str(exc)
-        return dict(provider=provider, model=model, key=key, options=options, effort=effort,
-                    display_model=model or providers.get(provider).default_model), None
+        return dict(
+            provider=provider,
+            model=model,
+            key=key,
+            options=options,
+            effort=effort,
+            display_model=model or providers.get(provider).default_model,
+        ), None
 
     def refresh(self):
         a = self.app
@@ -121,17 +151,20 @@ class CaptionModels:
         self.loading.add(identity)
         self.errors.pop(identity, None)
         base = a.advanced['lm_base'].get()
+
         def read():
             try:
                 if providers.is_cli(provider):
                     models, extra = providers.read_cli_models(provider, details=True)
                 else:
                     import audio_answer
+
                     models, extra = audio_answer.list_provider_models(provider, key, base=base), None
                 result = (provider, identity, models, extra, '')
             except Exception:
                 result = (provider, identity, None, None, '字幕模型目录刷新失败；保留原列表，可手动填写模型 ID。')
             a.events.put(('caption_models', result))
+
         threading.Thread(target=read, daemon=True, name='caption-models').start()
 
     def receive(self, result):
@@ -148,6 +181,7 @@ class CaptionModels:
                 a.handle_event('codex_capabilities', extra)
             if provider == providers.ANTIGRAVITY and models:
                 from antigravity_support import set_model_catalog
+
                 set_model_catalog(models)
         else:
             a.discovered_models[identity] = models

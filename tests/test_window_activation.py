@@ -1,4 +1,5 @@
 """Exercise activation style updates on a real Windows HWND."""
+
 import ctypes
 from ctypes import wintypes as w
 import tkinter as tk

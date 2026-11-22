@@ -4,6 +4,8 @@ All state lives in plain attributes and Tk variables; no state is kept in
 widgets. Tk remains as the event loop and for the small native dialogs
 (usage, speed test, sessions, screenshots, transcript and glossary).
 """
+
+import app_log
 from app_paths import ROOT, WORK, SETTINGS_FILE, data_path
 import ctypes
 import os
@@ -24,9 +26,21 @@ from kiro_support import kiro_answer
 from model_catalog import CATALOG, CATEGORIES, describe, select_models, thinking_options
 import providers
 from audio_capture import RATE, wav_bytes, AudioBuffer, Capture, run_process, transcribe
-from api_clients import (API_PROVIDERS, GEMINI_MODELS, CONTEXT_CAPACITY_MESSAGE, find_codex, codex_answer,
-                         sse_events, gemini_http_error, list_gemini_models, context_capacity_error,
-                         compatible_error, list_provider_models, compatible_answer, gemini_answer)
+from api_clients import (
+    API_PROVIDERS,
+    GEMINI_MODELS,
+    CONTEXT_CAPACITY_MESSAGE,
+    find_codex,
+    codex_answer,
+    sse_events,
+    gemini_http_error,
+    list_gemini_models,
+    context_capacity_error,
+    compatible_error,
+    list_provider_models,
+    compatible_answer,
+    gemini_answer,
+)
 from answer_jobs import AnswerJobs
 from cli_models import CliModels
 from hotkey_settings import HotkeySettings
@@ -39,18 +53,30 @@ from usage_ui import UsageUI
 
 SPECIAL_PROVIDERS = providers.CLI_PROVIDERS
 HOTKEY_ID = 0x4411
+POLL_MS = 20  # how often worker events (transcript, answer text) reach the controller
 
 
 from meeting_assistance import MeetingAssistance
 
 
-class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, ReasoningState, CliModels, UsageUI, HotkeySettings,
-          AnswerJobs, SettingsState):
+class App(
+    MeetingAssistance,
+    Screenshots,
+    SessionControl,
+    SpeedTestUI,
+    ReasoningState,
+    CliModels,
+    UsageUI,
+    HotkeySettings,
+    AnswerJobs,
+    SettingsState,
+):
     def __init__(self, root):
         self.root = root
         self.capture = Capture()
         self.events = queue.Queue()
         from generation_context import GenerationLanes
+
         self.generation_lanes = GenerationLanes()
         self.cancel = threading.Event()
         self.busy = False
@@ -76,15 +102,24 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
         try:
             self.saved = load_settings(SETTINGS_FILE)
         except Exception:
+            app_log.get('settings').warning('Settings could not be decrypted', exc_info=True)
             self.saved = {}
             self.preferences_error = '已有配置无法解密；请重新填写 Key 并保存。'
         from localization import Locale
+
         self.locale = Locale(root, self.saved.get('ui_language', 'en'))
-        self.caption_language = tk.StringVar(value={'en': 'English', 'zh': '中文', 'original': '原文', 'bilingual': '中英双语'}.get(
-            self.saved.get('caption_language', self.locale.language), 'English'))
-        self.answer_language = tk.StringVar(value={'en': 'English', 'zh': '中文', 'bilingual': '中英双语'}.get(
-            self.saved.get('answer_language', self.locale.language), 'English'))
+        self.caption_language = tk.StringVar(
+            value={'en': 'English', 'zh': '中文', 'original': '原文', 'bilingual': '中英双语'}.get(
+                self.saved.get('caption_language', self.locale.language), 'English'
+            )
+        )
+        self.answer_language = tk.StringVar(
+            value={'en': 'English', 'zh': '中文', 'bilingual': '中英双语'}.get(
+                self.saved.get('answer_language', self.locale.language), 'English'
+            )
+        )
         from caption_translation import CaptionPresenter
+
         self.captions = CaptionPresenter(self)
         self.init_advanced()
         self.token_ledger = TokenLedger(data_path(ROOT, 'token_usage.json'))
@@ -98,16 +133,21 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
         self.mic.on_pcm = lambda pcm: self.feed_meeting_audio('麦克风', pcm)
         self.usage_ledger = UsageLedger(data_path(ROOT, 'gemini_usage.json'))
         from ui_theme import apply_theme
+
         apply_theme(root)  # styles for the native dialogs
         self.init_hotkeys()
         self.init_usage()
 
         self.provider = tk.StringVar(value=providers.migrate(self.saved.get('provider', providers.CODEX)))
-        self.api_settings = {name: {'key': os.environ.get(config['env'], ''), 'model': next(iter(config['models']), '')}
-                             for name, config in API_PROVIDERS.items()}
+        self.api_settings = {
+            name: {'key': os.environ.get(config['env'], ''), 'model': next(iter(config['models']), '')}
+            for name, config in API_PROVIDERS.items()
+        }
         for name, settings_saved in self.saved.get('apis', {}).items():
             if name in self.api_settings and isinstance(settings_saved, dict):
-                self.api_settings[name].update({k: v for k, v in settings_saved.items() if k in ('key', 'model') and isinstance(v, str)})
+                self.api_settings[name].update(
+                    {k: v for k, v in settings_saved.items() if k in ('key', 'model') and isinstance(v, str)}
+                )
         self.discovered_models = {}
         self.refresh_busy = False
         self.refresh_pending = False
@@ -126,7 +166,9 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
         self.remember_keys = tk.BooleanVar(value=self.saved.get('remember_keys', True))
         self.answer_mode = tk.StringVar(value=self.saved.get('answer_mode', '快速'))
         self.fast_mode = tk.BooleanVar(value=bool(self.saved.get('fast', True)))
-        self.save_status = tk.StringVar(value=self.preferences_error or ('已加载本机加密配置' if self.saved else '填入 Key 后自动加密保存'))
+        self.save_status = tk.StringVar(
+            value=self.preferences_error or ('已加载本机加密配置' if self.saved else '填入 Key 后自动加密保存')
+        )
         self.instructions = tk.StringVar(value=self.saved_prompt)
         self.live_note = tk.StringVar(value='实时转录：尚未监听')
         self.status = tk.StringVar(value='尚未监听。选择播放设备，然后点击“准备”。')
@@ -137,6 +179,7 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
         self.init_cli_models()
         self.init_reasoning()
         from caption_models import CaptionModels
+
         self.caption_models = CaptionModels(self)
         self.update_provider()
         self.init_sessions()
@@ -147,7 +190,7 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
         self.loading_settings = False
         self.provider.trace_add('write', lambda *_: self.schedule_save())
         root.protocol('WM_DELETE_WINDOW', self.close)
-        root.after(60, self.poll)
+        root.after(POLL_MS, self.poll)
 
     @property
     def output_text(self):
@@ -176,7 +219,9 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
         return provider, key, base
 
     def filter_models(self):
-        self.model_choices = select_models(self.api_editing, self.discovered_models.get(self.model_catalog_key(self.api_editing)))
+        self.model_choices = select_models(
+            self.api_editing, self.discovered_models.get(self.model_catalog_key(self.api_editing))
+        )
 
     def model_catalog_note(self, provider=None):
         provider = provider or self.api_editing
@@ -198,20 +243,26 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
         catalog_key = self.model_catalog_key(provider)
         base = self.advanced['lm_base'].get()
         self.key_status.set('正在读取官方目录，不发送生成请求…')
+
         def work():
             try:
                 models = list_provider_models(provider, key, base=base)
                 self.events.put(('models_refreshed', (provider, catalog_key, models, None)))
             except Exception as exc:
-                message = str(exc).replace(key, '[KEY]') if key else str(exc)
+                message = app_log.redact(exc, key)
                 self.events.put(('models_refreshed', (provider, catalog_key, None, message)))
+
         threading.Thread(target=work, daemon=True).start()
 
     def invalidate_check(self, *_):
         self.check_revision += 1
         self.filter_models()
         self.key_status.set('Key 或模型已修改，请重新检测。')
-        self.model_note.set(API_PROVIDERS[self.api_editing]['models'].get(self.model.get().strip(), '自定义模型：价格和能力请核对官方说明。'))
+        self.model_note.set(
+            API_PROVIDERS[self.api_editing]['models'].get(
+                self.model.get().strip(), '自定义模型：价格和能力请核对官方说明。'
+            )
+        )
         self.schedule_save()
 
     def schedule_save(self):
@@ -224,11 +275,15 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
     def change_ui_language(self, language=None):
         if language is not None:
             self.locale.set_language('en' if language == 'en' else 'zh')
-        if self.follow_live and (self.live_text or self.live_drafts): self.render_live_transcript()
-        elif not self.follow_live: self.select_transcript()
+        if self.follow_live and (self.live_text or self.live_drafts):
+            self.render_live_transcript()
+        elif not self.follow_live:
+            self.select_transcript()
         self.schedule_save()
-        if getattr(self, 'quota_window', None) is not None and self.quota_window.winfo_exists(): self.render_usage()
-        if getattr(self, 'speed_window', None) is not None and self.speed_window.winfo_exists(): self.render_speed_results()
+        if getattr(self, 'quota_window', None) is not None and self.quota_window.winfo_exists():
+            self.render_usage()
+        if getattr(self, 'speed_window', None) is not None and self.speed_window.winfo_exists():
+            self.render_speed_results()
 
     def content_language(self, kind):
         variable = self.caption_language if kind == 'caption' else self.answer_language
@@ -237,29 +292,46 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
     def change_content_language(self, kind):
         if kind == 'caption':
             self.captions.reset()
-            if self.follow_live and (self.live_text or self.live_drafts): self.render_live_transcript()
-            elif not self.follow_live: self.select_transcript()
+            if self.follow_live and (self.live_text or self.live_drafts):
+                self.render_live_transcript()
+            elif not self.follow_live:
+                self.select_transcript()
         else:
             # Discard only speculative work; explicit answer jobs keep their snapshot.
             spec = getattr(self, 'speculation', None)
-            if spec: spec.discard(); self.speculation = None
+            if spec:
+                spec.discard()
+                self.speculation = None
             self.cancel_context_preparation()
         self.schedule_save()
 
     def save_preferences(self):
         self.save_timer = None
         self.api_settings[self.api_editing] = {'key': self.key.get().strip(), 'model': self.model.get().strip()}
-        common = {'ui_language': self.locale.language, 'caption_language': self.content_language('caption'),
-                  'caption_translation': {key: self.advanced[key].get() for key in ('caption_provider', 'caption_model')},
-                  'answer_language': self.content_language('answer'), 'hotkeys': self.hotkeys,
-                  'layout': {key: self.advanced[key].get() for key in SAVED_LAYOUT_KEYS}}
+        common = {
+            'ui_language': self.locale.language,
+            'caption_language': self.content_language('caption'),
+            'caption_translation': {key: self.advanced[key].get() for key in ('caption_provider', 'caption_model')},
+            'answer_language': self.content_language('answer'),
+            'hotkeys': self.hotkeys,
+            'layout': {key: self.advanced[key].get() for key in SAVED_LAYOUT_KEYS},
+        }
         try:
             if self.remember_keys.get():
-                save_settings(SETTINGS_FILE, {**common, 'apis': self.api_settings,
-                    'terms': getattr(self, 'terms', ''),
-                    'provider': self.provider.get(), 'use_history': self.use_history.get(), 'fast': self.fast_mode.get(),
-                    'answer_mode': self.answer_mode.get(), 'reasoning_settings': self.reasoning_settings,
-                    'advanced': {k: v.get() for k, v in self.advanced.items()}})
+                save_settings(
+                    SETTINGS_FILE,
+                    {
+                        **common,
+                        'apis': self.api_settings,
+                        'terms': getattr(self, 'terms', ''),
+                        'provider': self.provider.get(),
+                        'use_history': self.use_history.get(),
+                        'fast': self.fast_mode.get(),
+                        'answer_mode': self.answer_mode.get(),
+                        'reasoning_settings': self.reasoning_settings,
+                        'advanced': {k: v.get() for k, v in self.advanced.items()},
+                    },
+                )
                 self.save_status.set('已加密保存，下次打开自动填入')
             else:
                 save_settings(SETTINGS_FILE, {**common, 'remember_keys': False})
@@ -276,14 +348,19 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
         self.api_settings[self.api_editing] = {'key': key, 'model': model}
         self.save_preferences()
         provider = self.api_editing
-        targets = dict((name, dict(config)) for name, config in self.api_settings.items()) if all_keys else {provider: {'key': key, 'model': model}}
+        targets = (
+            dict((name, dict(config)) for name, config in self.api_settings.items())
+            if all_keys
+            else {provider: {'key': key, 'model': model}}
+        )
         if not all_keys and not key and provider != 'LM Studio':
             self.key_status.set('请先填写当前平台的 API Key。')
             return
         revision = self.check_revision
         self.check_busy = True
         self.key_status.set('正在测试所选模型…' if probe else '正在检测接口…')
-        if inline: self.inline_api_report = '正在检测接口…'
+        if inline:
+            self.inline_api_report = '正在检测接口…'
         base = self.advanced['lm_base'].get()
 
         def check():
@@ -299,15 +376,40 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
                         usage, success = {}, False
                         try:
                             if name == 'Gemini':
-                                gemini_answer(None, secret, selected_model, '', threading.Event(), lambda _: None,
-                                              transcript='Connectivity test. Reply only OK.', fast=True,
-                                              on_usage=lambda value: usage.update(value), max_output=128)
+                                gemini_answer(
+                                    None,
+                                    secret,
+                                    selected_model,
+                                    '',
+                                    threading.Event(),
+                                    lambda _: None,
+                                    transcript='Connectivity test. Reply only OK.',
+                                    fast=True,
+                                    on_usage=lambda value: usage.update(value),
+                                    max_output=128,
+                                )
                             else:
-                                compatible_answer(name, '', secret, selected_model, '', threading.Event(), lambda _: None,
-                                                  probe=True, base=base, on_usage=lambda value: usage.update(value))
+                                compatible_answer(
+                                    name,
+                                    '',
+                                    secret,
+                                    selected_model,
+                                    '',
+                                    threading.Event(),
+                                    lambda _: None,
+                                    probe=True,
+                                    base=base,
+                                    on_usage=lambda value: usage.update(value),
+                                )
                             success = True
                         finally:
-                            self.token_ledger.record(self.session_id + ':probe-' + uuid.uuid4().hex, name, selected_model, usage, '测试完成' if success else '测试失败')
+                            self.token_ledger.record(
+                                self.session_id + ':probe-' + uuid.uuid4().hex,
+                                name,
+                                selected_model,
+                                usage,
+                                '测试完成' if success else '测试失败',
+                            )
                             self.events.put(('usage_updated', ''))
                         result = f'模型请求成功（{time.monotonic() - start:.1f} 秒），用量已记录；不代表真实问答速度或免费额度。'
                     else:
@@ -316,13 +418,14 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
                         result = f'Key 可访问目录；{selected}。生成权限/余额/额度请再测试模型。'
                     results.append(name + '：' + result)
                 except Exception as exc:
-                    results.append(name + '：检测未通过，' + (str(exc).replace(secret, '[KEY]') if secret else str(exc)))
+                    results.append(name + '：检测未通过，' + app_log.redact(exc, secret))
             message = '\n'.join(results)
             self.events.put(('key_check', (revision, message)))
             if inline:
                 self.events.put(('inline_check_report', message))
             elif all_keys:
                 self.events.put(('all_check_report', (revision, message)))
+
         threading.Thread(target=check, daemon=True).start()
 
     def refresh_devices(self):
@@ -346,53 +449,83 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
 
     def warm_answer_channel(self):
         """Prepare the selected provider while speech is still arriving (throttled, never blocks Tk)."""
-        if self.closed or getattr(self, 'closing', False): return
+        if self.closed or getattr(self, 'closing', False):
+            return
         now = time.monotonic()
-        if now - getattr(self, 'last_channel_warm', -1e9) < 15: return
+        if now - getattr(self, 'last_channel_warm', -1e9) < 15:
+            return
         self.last_channel_warm = now
         provider = self.provider.get()
-        options = {name: self.advanced[name].get() for name in ('codex_model', 'lm_base', 'spare_session') if name in self.advanced}
+        options = {
+            name: self.advanced[name].get()
+            for name in ('codex_model', 'lm_base', 'spare_session')
+            if name in self.advanced
+        }
+
         def run():
             try:
                 if provider == 'Codex':
                     from codex_service import get_service
+
                     get_service(find_codex(), WORK).prewarm((options.get('codex_model') or '').strip())
                 elif provider == 'Gemini':
-                    import http_pool; http_pool.warm('https://generativelanguage.googleapis.com/', count=1)
+                    import http_pool
+
+                    http_pool.warm('https://generativelanguage.googleapis.com/', count=1)
                 elif provider in API_PROVIDERS:
                     import http_pool
-                    base = local_base(options.get('lm_base') or API_PROVIDERS[provider]['base']) if provider == 'LM Studio' else API_PROVIDERS[provider]['base']
+
+                    base = (
+                        local_base(options.get('lm_base') or API_PROVIDERS[provider]['base'])
+                        if provider == 'LM Studio'
+                        else API_PROVIDERS[provider]['base']
+                    )
                     http_pool.warm(base, count=1)
             except Exception:
                 pass
+
         threading.Thread(target=run, daemon=True).start()
 
     def update_asr_pause(self, *_):
-        self.live.silence = {'快速 · 0.35 秒': .35, '均衡 · 0.65 秒': .65, '稳妥 · 1.0 秒': 1.0}.get(self.advanced['asr_pause'].get(), .35)
-        if not self.loading_settings: self.schedule_save()
+        self.live.silence = {'快速 · 0.35 秒': 0.35, '均衡 · 0.65 秒': 0.65, '稳妥 · 1.0 秒': 1.0}.get(
+            self.advanced['asr_pause'].get(), 0.35
+        )
+        if not self.loading_settings:
+            self.schedule_save()
 
     def listening(self):
         return not getattr(self, 'closing', False) and bool(self.capture.active() or self.mic.active())
 
     def prepare_listening(self):
-        if getattr(self, 'closing', False) or getattr(self, 'preparing_listen', False): return
-        if self.capture.active() or self.mic.active(): return
+        if getattr(self, 'closing', False) or getattr(self, 'preparing_listen', False):
+            return
+        if self.capture.active() or self.mic.active():
+            return
         self.preparing_listen = True
         self.status.set('准备中：正在启动监听，随后准备模型上下文…')
+
         def start():
-            try: self.toggle_listen()
-            finally: self.preparing_listen = False
+            try:
+                self.toggle_listen()
+            finally:
+                self.preparing_listen = False
+
         self.root.after_idle(start)
 
     def toggle_listen(self, recap=True):
-        if getattr(self, 'closing', False): return
+        if getattr(self, 'closing', False):
+            return
         if self.capture.active() or self.mic.active():
-            self.capture.stop(); self.mic.stop()
+            self.capture.stop()
+            self.mic.stop()
             self.transcription_paused = True
             spec = getattr(self, 'speculation', None)
-            if spec: spec.discard(); self.speculation = None
+            if spec:
+                spec.discard()
+                self.speculation = None
             self.live.flush()
-            self.capture.buffer.clear(); self.mic.buffer.clear()
+            self.capture.buffer.clear()
+            self.mic.buffer.clear()
             self.status.set('转录已暂停；已有内容保留，正在生成的回答继续。')
             if recap and self.advanced.get('auto_recap') and self.advanced['auto_recap'].get() == '1':
                 self.finish_recap()
@@ -409,8 +542,11 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
                         raise RuntimeError('请选择播放设备。')
                     self.capture.start(self.devices[self.device_index])
                 if source != '电脑':
-                    device = (self.mic.audio.get_device_info_by_index(self.mic_index) if self.mic_index is not None
-                              else self.mic.audio.get_default_input_device_info())
+                    device = (
+                        self.mic.audio.get_device_info_by_index(self.mic_index)
+                        if self.mic_index is not None
+                        else self.mic.audio.get_default_input_device_info()
+                    )
                     if device.get('isLoopbackDevice'):
                         raise RuntimeError('请选择实际麦克风设备。')
                     self.mic.start(device)
@@ -419,7 +555,8 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
                 self.prepare_model_context()
                 self.status.set('实时转录中：' + source + '。说完后稍候可见文字；按快捷键只触发回答。')
             except Exception as exc:
-                self.capture.stop(); self.mic.stop()
+                self.capture.stop()
+                self.mic.stop()
                 self.status.set('无法开始监听：' + str(exc))
 
     def change_asr(self):
@@ -451,10 +588,12 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
 
     def render_live_transcript(self):
         from caption_translation import display_transcript
+
         self.captions.sync_previews(self.live_drafts)
-        pending = '\n\n'.join(self.captions.body(value['text'], draft=True, source=source,
-                                               generation=value.get('generation', 0))
-                              for source, value in self.live_drafts.items())
+        pending = '\n\n'.join(
+            self.captions.body(value['text'], draft=True, source=source, generation=value.get('generation', 0))
+            for source, value in self.live_drafts.items()
+        )
         visible = display_transcript(self.captions.transcript(self.live_text))
         self.transcript_view = visible + ('\n\n' + pending if pending else '')
 
@@ -467,15 +606,24 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
         index = self.selected_transcript
         if 0 <= index < len(self.transcript_records):
             from caption_translation import display_transcript
-            self.put_text(display_transcript(self.captions.transcript(self.transcript_records[index]['text'])), replace=True, target='transcript')
+
+            self.put_text(
+                display_transcript(self.captions.transcript(self.transcript_records[index]['text'])),
+                replace=True,
+                target='transcript',
+            )
 
     def remember_transcript(self, text, request_id, select=True):
         record = next((r for r in self.transcript_records if r['id'] == request_id), None)
         if record:
             record['text'] = text
         else:
-            record = {'id': request_id, 'text': text,
-                      'label': f"{len(self.transcript_records)+1}. " + self.job_labels.get(request_id, time.strftime('%H:%M:%S'))}
+            record = {
+                'id': request_id,
+                'text': text,
+                'label': f"{len(self.transcript_records) + 1}. "
+                + self.job_labels.get(request_id, time.strftime('%H:%M:%S')),
+            }
             self.transcript_records.append(record)
         if select:
             self.selected_transcript = self.transcript_records.index(record)
@@ -486,9 +634,11 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
             return
         closing = getattr(self, 'closing', False)
         if not closing:
-            self.level = max(self.capture.level if self.capture.active() else 0, self.mic.level if self.mic.active() else 0)
+            self.level = max(
+                self.capture.level if self.capture.active() else 0, self.mic.level if self.mic.active() else 0
+            )
         for request_id, job in self.jobs.items():
-            if not job['done'] and time.monotonic()-job['started'] > job['timeout']:
+            if not job['done'] and time.monotonic() - job['started'] > job['timeout']:
                 self.cancel_job(request_id, '此任务达到时限；已保留部分答案，可继续回答。')
         if not closing and self.mic.error:
             self.status.set('麦克风采集失败：' + self.mic.error)
@@ -498,7 +648,7 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
             self.status.set('音频采集已中断：' + self.capture.error)
             self.capture.error = ''
         try:
-            poll_deadline = time.monotonic() + .012
+            poll_deadline = time.monotonic() + 0.012
             while time.monotonic() < poll_deadline:
                 kind, text = self.events.get_nowait()
                 self.handle_event(kind, text)
@@ -511,7 +661,7 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
                 if not closing and hasattr(self, 'auto_answers'):
                     self.meeting_tick()
                 self.session_tick()
-                self.root.after(60, self.poll)
+                self.root.after(POLL_MS, self.poll)
 
     def handle_event(self, kind, text):
         if kind == 'caption_models':
@@ -534,11 +684,12 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
             self.warm_answer_channel()
         elif kind == 'live_segment':
             draft = self.live_drafts.get(text.get('source'))
-            if draft and draft['generation'] <= text['generation']: self.live_drafts.pop(text['source'], None)
+            if draft and draft['generation'] <= text['generation']:
+                self.live_drafts.pop(text['source'], None)
             self.live_text, self.live_last_source = append_transcript(self.live_text, self.live_last_source, text)
             self.remember_transcript(text['text'], -text['sequence'], select=False)
             if self.follow_live:
-                self.selected_transcript = len(self.transcript_records)-1
+                self.selected_transcript = len(self.transcript_records) - 1
                 self.live_dirty = True
             if hasattr(self, 'auto_answers'):
                 self.offer_auto_answer(text)
@@ -546,7 +697,8 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
                 self.maybe_speculate(text)
         elif kind == 'context_warm':
             ticket, message = text
-            if ticket == getattr(self, 'context_warm_ticket', None): self.context_warm_note.set(message)
+            if ticket == getattr(self, 'context_warm_ticket', None):
+                self.context_warm_note.set(message)
         elif kind == 'job':
             self.handle_job_event(*text)
         elif kind == 'completed':
@@ -617,7 +769,14 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
             self.codex_quota_text = text
             self.render_usage()
         elif kind == 'codex_capabilities':
-            self.codex_capabilities = {item['model']: [level['reasoningEffort'] for level in item.get('supportedReasoningEfforts', []) if level.get('reasoningEffort')] for item in text}
+            self.codex_capabilities = {
+                item['model']: [
+                    level['reasoningEffort']
+                    for level in item.get('supportedReasoningEfforts', [])
+                    if level.get('reasoningEffort')
+                ]
+                for item in text
+            }
             self.update_reasoning()
         elif kind == 'speed_models':
             self.receive_speed_models(text)
@@ -640,7 +799,8 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
         if not job or job['done']:
             return
         if kind == 'text':
-            if text.startswith('\n[处理失败，已有内容已保留]'): text = self.locale.t(text)
+            if text.startswith('\n[处理失败，已有内容已保留]'):
+                text = self.locale.t(text)
             job['answer'] += text
             self.job_text(revision, text)
             if text.strip() and 'first_reply' in job.get('timing', {}) and not job.get('display_scheduled'):
@@ -661,31 +821,46 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
         elif kind == 'completed':
             analysis, version, transcript, answer = text
             job['completed'] = True
-            if (analysis and version == self.context_version) or (not analysis and job.get('history_epoch', 0) == getattr(self, 'history_epoch', 0)):
-                if analysis: self.context_summary = answer
+            if (analysis and version == self.context_version) or (
+                not analysis and job.get('history_epoch', 0) == getattr(self, 'history_epoch', 0)
+            ):
+                if analysis:
+                    self.context_summary = answer
                 else:
-                    self.history.append({'转录截止段': job['target'], '回答': answer} if job.get('target') is not None else {'转录': transcript, '回答': answer})
+                    self.history.append(
+                        {'转录截止段': job['target'], '回答': answer}
+                        if job.get('target') is not None
+                        else {'转录': transcript, '回答': answer}
+                    )
         elif kind == 'done':
             job['done'] = True
-            job['elapsed'] = time.monotonic()-job['started']
+            job['elapsed'] = time.monotonic() - job['started']
             self.busy = any(not value['done'] for value in self.jobs.values())
             self.job_text(revision, self.locale.t('\n[此任务结束]\n'))
 
     def close(self):
-        if self.closed: return
-        if getattr(self, 'closing', False): return
+        if self.closed:
+            return
+        if getattr(self, 'closing', False):
+            return
         self.closing = True
         self.captions.close()
         threading.Thread(target=self.generation_lanes.close, daemon=True).start()
         from claude_support import close_service as close_claude
+
         threading.Thread(target=close_claude, daemon=True).start()
         from codex_service import close_service
+
         threading.Thread(target=close_service, daemon=True).start()
         from antigravity_support import close_service as close_agy
+
         threading.Thread(target=close_agy, daemon=True).start()
-        import http_pool; http_pool.close_all()
+        import http_pool
+
+        http_pool.close_all()
         self.cancel_context_preparation()
-        if getattr(self, 'speculation', None): self.speculation.discard()
+        if getattr(self, 'speculation', None):
+            self.speculation.discard()
         self.status.set('正在保存会话并关闭…')
         self.cancel_speed_test()
         if self.save_timer:
@@ -701,6 +876,7 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
             ctypes.windll.user32.PostThreadMessageW(self.hotkey_thread_id, 0x0012, 0, 0)
         # A stuck audio driver must not hold Tk's event loop or the other device.
         stopped = [threading.Event(), threading.Event()]
+
         def stop_device(device, done):
             try:
                 device.stop()
@@ -708,24 +884,30 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
                 pass
             finally:
                 done.set()
+
         for device, done in zip((self.capture, self.mic), stopped):
             threading.Thread(target=stop_device, args=(device, done), daemon=True).start()
         ready = threading.Event()
+
         def finish_audio():
             try:
-                deadline = time.monotonic()+2
-                for done in stopped: done.wait(max(0, deadline-time.monotonic()))
+                deadline = time.monotonic() + 2
+                for done in stopped:
+                    done.wait(max(0, deadline - time.monotonic()))
                 target = self.live.flush()
                 while self.live.completed < target and time.monotonic() < deadline:
-                    time.sleep(.02)
+                    time.sleep(0.02)
             finally:
                 self.live.close()
                 ready.set()
+
         threading.Thread(target=finish_audio, daemon=True).start()
-        deadline = time.monotonic()+3
+        deadline = time.monotonic() + 3
+
         def finish_window():
             if not ready.is_set() and time.monotonic() < deadline:
-                self.root.after(40, finish_window); return
+                self.root.after(40, finish_window)
+                return
             # Drain delivered text before capturing the last encrypted checkpoint.
             self.poll()
             self.closed = True
@@ -734,20 +916,32 @@ class App(MeetingAssistance, Screenshots, SessionControl, SpeedTestUI, Reasoning
             finally:
                 writer = self.session_writer
                 saved = threading.Event()
+
                 def finish_save():
                     try:
-                        if writer: writer.close()
+                        if writer:
+                            writer.close()
                     finally:
                         saved.set()
+
                 threading.Thread(target=finish_save, daemon=True).start()
                 for device, done in zip((self.capture, self.mic), stopped):
+
                     def cleanup(device=device, done=done):
                         done.wait()
-                        try: device.close()
-                        except Exception: pass
+                        try:
+                            device.close()
+                        except Exception:
+                            pass
+
                     threading.Thread(target=cleanup, daemon=True).start()
+
                 def destroy_when_saved():
-                    if saved.is_set(): self.root.destroy()
-                    else: self.root.after(40, destroy_when_saved)
+                    if saved.is_set():
+                        self.root.destroy()
+                    else:
+                        self.root.after(40, destroy_when_saved)
+
                 destroy_when_saved()
+
         self.root.after(40, finish_window)

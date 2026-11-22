@@ -8,3 +8,6 @@
 
 # Translation fragments intentionally include trailing spaces inside a multiline string.
 app/locale_catalog.py whitespace=-blank-at-eol
+*.js text eol=lf
+*.css text eol=lf
+*.toml text eol=lf

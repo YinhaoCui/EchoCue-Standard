@@ -4,6 +4,7 @@ A small fake bridge serves the real files in app/web and answers /state and
 /command the way glass_bridge does. Look settings go through the real
 validators, so a bad value the page sends fails here too.
 """
+
 import json
 import os
 import threading
@@ -24,18 +25,58 @@ def fixture_state():
     from settings_state import DEFAULT_OPTIONS
     from prompt_templates import builtin_prompts
     from hotkey_settings import DEFAULTS as HOTKEY_DEFAULTS
+
     return dict(
-        language='en', hotkeys=dict(HOTKEY_DEFAULTS), hotkey_defaults=dict(HOTKEY_DEFAULTS), hotkey_status='Shortcuts ready', hotkey_result=None, navigation_request=None,
-        providers=['DeepSeek', 'Kiro（本机登录）'], provider='DeepSeek', model='deepseek-chat',
-        models=['deepseek-chat'], model_status='', efforts=['auto'], effort='auto', cli=False, has_key=True,
-        options=dict(DEFAULT_OPTIONS), engines=['英文 · Zipformer'], caption='English', answer='English',
-        history=True, history_count=0, context_version=0, context_edit=None,
-        prompt_templates={}, prompt_templates_version=0, prompt_templates_error='', prompt_result=None, prompt_presets=builtin_prompts(),
-        meeting=dict(scenes=[], answers=[], scene_version=0, scenes_error='', result=None, recap_pending=False), speaker_note='',
-        profile='', documents='', summary='', instructions='', answer_mode='快速',
-        devices=['Speakers'], device=0, microphones=[], microphone='', images=[], listening=False,
-        preparing=False, status='Ready', transcript='Hello there. ' * 40, output='An answer. ' * 60,
-        usage='—', jobs=[], native=dict(topmost=False), closing=False)
+        language='en',
+        hotkeys=dict(HOTKEY_DEFAULTS),
+        hotkey_defaults=dict(HOTKEY_DEFAULTS),
+        hotkey_status='Shortcuts ready',
+        hotkey_result=None,
+        navigation_request=None,
+        providers=['DeepSeek', 'Kiro（本机登录）'],
+        provider='DeepSeek',
+        model='deepseek-chat',
+        models=['deepseek-chat'],
+        model_status='',
+        efforts=['auto'],
+        effort='auto',
+        cli=False,
+        has_key=True,
+        options=dict(DEFAULT_OPTIONS),
+        engines=['英文 · Zipformer'],
+        caption='English',
+        answer='English',
+        history=True,
+        history_count=0,
+        context_version=0,
+        context_edit=None,
+        prompt_templates={},
+        prompt_templates_version=0,
+        prompt_templates_error='',
+        prompt_result=None,
+        prompt_presets=builtin_prompts(),
+        meeting=dict(scenes=[], answers=[], scene_version=0, scenes_error='', result=None, recap_pending=False),
+        speaker_note='',
+        profile='',
+        documents='',
+        summary='',
+        instructions='',
+        answer_mode='快速',
+        devices=['Speakers'],
+        device=0,
+        microphones=[],
+        microphone='',
+        images=[],
+        listening=False,
+        preparing=False,
+        status='Ready',
+        transcript='Hello there. ' * 40,
+        output='An answer. ' * 60,
+        usage='—',
+        jobs=[],
+        native=dict(topmost=False),
+        closing=False,
+    )
 
 
 class FakeBridge:
@@ -44,6 +85,7 @@ class FakeBridge:
         from settings_state import LAYOUT_KEYS
         from glass_bridge import state_query
         from state_feed import StateFeed
+
         self.state, self.commands, self.lock = fixture_state(), [], threading.Lock()
         self.state['options']['ui_theme'] = theme
         self.feed = StateFeed()
@@ -68,7 +110,15 @@ class FakeBridge:
                 if self.path.split('?', 1)[0] == '/state':
                     bridge.reads += 1
                     return self.reply(200, bridge.feed.read(**state_query(self.path)))
-                name = {'/': 'index.html', '/app.js': 'app.js', '/context_editor.js': 'context_editor.js', '/meeting.js': 'meeting.js', '/markdown.js': 'markdown.js', '/popups.js': 'popups.js', '/style.css': 'style.css'}.get(self.path)
+                name = {
+                    '/': 'index.html',
+                    '/app.js': 'app.js',
+                    '/context_editor.js': 'context_editor.js',
+                    '/meeting.js': 'meeting.js',
+                    '/markdown.js': 'markdown.js',
+                    '/popups.js': 'popups.js',
+                    '/style.css': 'style.css',
+                }.get(self.path)
                 if self.path == '/workbench.js':
                     name = 'workbench.js'
                 if self.path == '/settings_tools.js':
@@ -85,23 +135,31 @@ class FakeBridge:
                 data = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
                 with bridge.lock:
                     bridge.commands.append(data)
-                    if data.get('action')=='save_hotkeys':
+                    if data.get('action') == 'save_hotkeys':
                         from hotkey_settings import validate
+
                         try:
-                            bridge.state['hotkeys']=validate(data['values'])
-                            bridge.state['hotkey_result']=dict(id=data['id'],ok=True)
+                            bridge.state['hotkeys'] = validate(data['values'])
+                            bridge.state['hotkey_result'] = dict(id=data['id'], ok=True)
                         except ValueError as exc:
-                            bridge.state['hotkey_result']=dict(id=data['id'],ok=False,error=str(exc))
+                            bridge.state['hotkey_result'] = dict(id=data['id'], ok=False, error=str(exc))
                     if data.get('action') in ('save_prompt_template', 'delete_prompt_template'):
                         from prompt_templates import updated_templates
+
                         try:
                             if data['version'] != bridge.state['prompt_templates_version']:
                                 raise ValueError('stale library')
-                            bridge.state['prompt_templates'] = updated_templates(bridge.state['prompt_templates'],data['name'],data.get('text'),delete=data['action']=='delete_prompt_template',overwrite=data.get('overwrite',False))
+                            bridge.state['prompt_templates'] = updated_templates(
+                                bridge.state['prompt_templates'],
+                                data['name'],
+                                data.get('text'),
+                                delete=data['action'] == 'delete_prompt_template',
+                                overwrite=data.get('overwrite', False),
+                            )
                             bridge.state['prompt_templates_version'] += 1
-                            bridge.state['prompt_result'] = dict(id=data['id'],ok=True)
+                            bridge.state['prompt_result'] = dict(id=data['id'], ok=True)
                         except ValueError:
-                            bridge.state['prompt_result'] = dict(id=data['id'],ok=False,error='invalid template')
+                            bridge.state['prompt_result'] = dict(id=data['id'], ok=False, error='invalid template')
                     if data.get('action') == 'apply_context':
                         ok = data.get('version') == bridge.state['context_version']
                         bridge.state['context_edit'] = dict(id=data['id'], ok=ok)
@@ -116,7 +174,10 @@ class FakeBridge:
                         try:
                             look = {k: layout_value(k, values[k]) for k in LAYOUT_KEYS if k in values}
                             from settings_state import PRESENTATION_DEFAULTS, presentation_value
-                            look.update({k: presentation_value(k, values[k]) for k in PRESENTATION_DEFAULTS if k in values})
+
+                            look.update(
+                                {k: presentation_value(k, values[k]) for k in PRESENTATION_DEFAULTS if k in values}
+                            )
                             if 'listen_presets' in values:
                                 look['listen_presets'] = listen_presets(values['listen_presets'])
                         except ValueError as exc:
@@ -127,7 +188,10 @@ class FakeBridge:
                             if key in values:
                                 bridge.state['options'][key] = values[key]
                         from meeting_assistance import OPTIONS
-                        bridge.state['options'].update({k: v for k, v in values.items() if k in OPTIONS and v in OPTIONS[k]})
+
+                        bridge.state['options'].update(
+                            {k: v for k, v in values.items() if k in OPTIONS and v in OPTIONS[k]}
+                        )
                         if 'history' in values:
                             bridge.state['history'] = values['history']
                         if values.get('language') in ('en', 'zh'):
@@ -174,7 +238,7 @@ class ListenPageTests(unittest.TestCase):
         self.assertEqual(self.page.input_value('#context-instructions'), 'Keyboard input still works')
         self.page.click('#context-toggle')
         self.page.wait_for_function('window.__activationLayout?.mouse_only === true')
-        self.page.click('#listen button[data-view=settings]')
+        self.page.locator('button[data-view=settings]:visible').first.click()
         self.page.wait_for_function('window.__activationLayout?.mouse_only === false')
 
     def test_toolbar_menus_keep_no_activation_until_a_text_field_is_focused(self):
@@ -182,12 +246,16 @@ class ListenPageTests(unittest.TestCase):
             window.pywebview={api:{shape:layout=>{window.__activationLayout=layout;return Promise.resolve(true)}}};
             lastShape=''; scheduleShape();
         }""")
-        for button, menu in (('#layout-button','#layout-menu'),('#more','#more-menu'),('#layout-button','#layout-menu')):
+        for button, menu in (
+            ('#layout-button', '#layout-menu'),
+            ('#more', '#more-menu'),
+            ('#layout-button', '#layout-menu'),
+        ):
             self.page.click(button)
             self.assertTrue(self.page.is_visible(menu))
             self.page.wait_for_function('window.__activationLayout?.mouse_only === true')
         self.assertFalse(self.page.evaluate('window.__activationLayout.keyboard_editing'))
-        self.page.fill('#preset-name','My layout')
+        self.page.fill('#preset-name', 'My layout')
         self.page.wait_for_function('window.__activationLayout?.mouse_only === false')
         self.assertTrue(self.page.evaluate('window.__activationLayout.keyboard_editing'))
         self.page.click('#more')
@@ -195,16 +263,17 @@ class ListenPageTests(unittest.TestCase):
 
     def test_catalog_refresh_keeps_unlisted_selection_without_claiming_availability(self):
         with self.bridge.lock:
-            self.bridge.state.update(model='saved-custom', models=['new-chat'],
-                                     model_status='Catalog source: last successful refresh.')
+            self.bridge.state.update(
+                model='saved-custom', models=['new-chat'], model_status='Catalog source: last successful refresh.'
+            )
             self.bridge.publish()
         self.page.wait_for_function("document.querySelector('#model-picker').value === 'saved-custom'")
-        options=self.page.locator('#model-picker option')
+        options = self.page.locator('#model-picker option')
         self.assertEqual(options.evaluate_all('(items)=>items.map(x=>x.value)'), ['', 'new-chat', 'saved-custom'])
         self.assertIn('selected, not listed', options.last.text_content())
         self.assertEqual(self.page.input_value('#model'), 'saved-custom')
         with self.bridge.lock:
-            self.bridge.state['models']=[]
+            self.bridge.state['models'] = []
             self.bridge.publish()
         self.page.wait_for_function("document.querySelector('#model-picker').options.length === 2")
         self.assertEqual(self.page.input_value('#model-picker'), 'saved-custom')
@@ -229,7 +298,9 @@ class ListenPageTests(unittest.TestCase):
         self.page.click('#prompt-delete')
         self.page.wait_for_function("!Object.hasOwn(current.prompt_templates,'Tutor')")
         self.assertEqual(self.page.input_value('#context-instructions'), 'Be a concise tutor')
-        self.assertNotIn('Be a concise tutor', self.page.evaluate('JSON.stringify(localStorage)+JSON.stringify(sessionStorage)'))
+        self.assertNotIn(
+            'Be a concise tutor', self.page.evaluate('JSON.stringify(localStorage)+JSON.stringify(sessionStorage)')
+        )
 
     def test_prompt_template_replace_needs_confirmation(self):
         with self.bridge.lock:
@@ -251,9 +322,11 @@ class ListenPageTests(unittest.TestCase):
         self.page.click('.listen-toolbar [data-action="answer"]')
         self.page.wait_for_function("current.instructions === 'private draft fixture'")
         self.page.wait_for_timeout(150)
-        actions=[c['action'] for c in self.bridge.commands]
+        actions = [c['action'] for c in self.bridge.commands]
         self.assertLess(actions.index('apply_context'), actions.index('answer'))
-        self.assertNotIn('private draft fixture', self.page.evaluate('JSON.stringify(localStorage)+JSON.stringify(sessionStorage)'))
+        self.assertNotIn(
+            'private draft fixture', self.page.evaluate('JSON.stringify(localStorage)+JSON.stringify(sessionStorage)')
+        )
 
     def test_text_question_sends_answer_without_transcription(self):
         self.assertFalse(self.bridge.state['listening'])
@@ -282,8 +355,10 @@ class ListenPageTests(unittest.TestCase):
             self.bridge.state['caption'] = '中英双语'
             self.bridge.publish()
         self.page.wait_for_function("!document.querySelector('#translate-now').hidden")
-        with self.page.expect_response(lambda response: response.url.endswith('/command')
-                                       and response.request.post_data_json.get('action') == 'translate_now'):
+        with self.page.expect_response(
+            lambda response: response.url.endswith('/command')
+            and response.request.post_data_json.get('action') == 'translate_now'
+        ):
             self.page.click('#translate-now')
         with self.bridge.lock:
             self.assertIn({'action': 'translate_now'}, self.bridge.commands)
@@ -309,7 +384,9 @@ class ListenPageTests(unittest.TestCase):
             self.bridge.publish()
         self.page.wait_for_function('current.context_version === 1')
         self.page.click('#context-apply')
-        self.page.wait_for_function("document.querySelector('#context-edit-status').textContent.includes('changed elsewhere')")
+        self.page.wait_for_function(
+            "document.querySelector('#context-edit-status').textContent.includes('changed elsewhere')"
+        )
         self.assertEqual(self.page.input_value('#context-documents'), 'local draft')
         self.assertEqual(self.bridge.state['documents'], 'external source')
         self.page.click('#context-reload')
@@ -328,17 +405,20 @@ class ListenPageTests(unittest.TestCase):
         self.page.click('#context-clear-history')
         self.page.wait_for_function('current.history_count === 0')
         self.page.set_viewport_size(dict(width=760, height=560))
-        self.assertTrue(self.page.evaluate("""() => {
+        self.assertTrue(
+            self.page.evaluate("""() => {
             const r=document.querySelector('#context-drawer').getBoundingClientRect();
             return r.left>=0 && r.right<=innerWidth && r.bottom<=innerHeight;
-        }"""))
+        }""")
+        )
 
     @classmethod
     def setUpClass(cls):
         cls.playwright = sync_playwright().start()
         channel = os.environ.get('ECHOCUE_UI_BROWSER', 'msedge')
-        cls.browser = cls.playwright.chromium.launch(channel=channel or None, headless=True,
-                                                    ignore_default_args=['--hide-scrollbars'])
+        cls.browser = cls.playwright.chromium.launch(
+            channel=channel or None, headless=True, ignore_default_args=['--hide-scrollbars']
+        )
 
     def meeting_ack(self, action):
         for _ in range(60):
@@ -388,11 +468,16 @@ class ListenPageTests(unittest.TestCase):
             self.assertFalse(any(c.get('action') == 'load_scene' for c in self.bridge.commands))
         self.page.click('[data-meeting="load_scene"]')
         self.meeting_ack('load_scene')
-        self.page.wait_for_function("document.querySelector('#context-instructions').value === 'Use my reference material'")
+        self.page.wait_for_function(
+            "document.querySelector('#context-instructions').value === 'Use my reference material'"
+        )
 
     def test_quick_action_keeps_selected_answer_id_and_followup(self):
         with self.bridge.lock:
-            self.bridge.state['meeting']['answers'] = [dict(id=7, label='First answer'), dict(id=9, label='Second answer')]
+            self.bridge.state['meeting']['answers'] = [
+                dict(id=7, label='First answer'),
+                dict(id=9, label='Second answer'),
+            ]
             self.bridge.publish()
         self.page.click('#meeting-refinements summary')
         self.page.wait_for_function("document.querySelector('#meeting-answer').options.length === 2")
@@ -402,7 +487,9 @@ class ListenPageTests(unittest.TestCase):
         command = self.meeting_ack('quick_answer')
         self.assertEqual(command['job'], 7)
         self.assertEqual(command['text'], 'Why is the first solution faster?')
-        self.page.wait_for_function("document.querySelector('#meeting-action-status').textContent === 'Answer task created.'")
+        self.page.wait_for_function(
+            "document.querySelector('#meeting-action-status').textContent === 'Answer task created.'"
+        )
         self.page.screenshot(path=str(WEB.parent.parent / 'work/meeting-ui-listen.png'))
         self.page.click('.listen-toolbar [data-view="settings"]')
         self.page.locator('#meeting-settings').scroll_into_view_if_needed()
@@ -462,23 +549,39 @@ class ListenPageTests(unittest.TestCase):
                     self.assertEqual(metrics['overflow'], 'scroll')
                     self.assertGreaterEqual(metrics['gutter'], 10)
                     self.assertTrue(metrics['scrollable'])
+                    # Let the native thumb repaint after resetting scrollTop.
+                    pane.evaluate(
+                        'el => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))'
+                    )
                     box = pane.bounding_box()
-                    self.page.mouse.move(box['x'] + box['width'] - metrics['gutter'] / 2,
-                                         box['y'] + metrics['gutter'] + 8)
+                    self.page.mouse.move(
+                        box['x'] + box['width'] - metrics['gutter'] / 2, box['y'] + metrics['gutter'] + 8
+                    )
                     self.page.mouse.down()
-                    self.page.mouse.move(box['x'] + box['width'] - metrics['gutter'] / 2,
-                                         box['y'] + min(90, box['height'] - 20), steps=8)
+                    self.page.mouse.move(
+                        box['x'] + box['width'] - metrics['gutter'] / 2, box['y'] + min(90, box['height'] - 20), steps=8
+                    )
                     self.page.mouse.up()
-                    self.assertGreater(pane.evaluate('el => el.scrollTop'), 0)
+                    self.page.wait_for_function(
+                        '(selector) => document.querySelector(selector).scrollTop > 0', arg=selector
+                    )
+                    # Native scrollbar commits can arrive after the pointer-up response.
+                    pane.evaluate(
+                        'el => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))'
+                    )
                     pane.evaluate('el => el.scrollTop=120')
             with self.bridge.lock:
-                self.bridge.state.update(transcript=self.bridge.state['transcript'] + '\n\nIncoming transcript',
-                                         output=self.bridge.state['output'] + '\n\nIncoming answer')
+                self.bridge.state.update(
+                    transcript=self.bridge.state['transcript'] + '\n\nIncoming transcript',
+                    output=self.bridge.state['output'] + '\n\nIncoming answer',
+                )
                 self.bridge.publish()
             self.page.wait_for_function("current.output.endsWith('Incoming answer')")
             for selector in ('#transcript', '#output'):
                 self.assertAlmostEqual(self.page.locator(selector).evaluate('el => el.scrollTop'), 120, delta=2)
-            self.page.screenshot(path=str(WEB.parent.parent / f'work/reading-scrollbars-{getattr(self,"theme","classic")}-{width}.png'))
+            self.page.screenshot(
+                path=str(WEB.parent.parent / f'work/reading-scrollbars-{getattr(self, "theme", "classic")}-{width}.png')
+            )
 
     def test_toolbar_stays_on_one_row(self):
         for width in (1500, 1180, 900, 760):
@@ -529,7 +632,9 @@ class ListenPageTests(unittest.TestCase):
         else:
             before = self.page.locator('.transcript-panel').bounding_box()['height']
             self.drag('.splitter[data-split="transcript"]', 0, 60)
-            self.assertAlmostEqual(self.page.locator('.transcript-panel').bounding_box()['height'], before + 60, delta=3)
+            self.assertAlmostEqual(
+                self.page.locator('.transcript-panel').bounding_box()['height'], before + 60, delta=3
+            )
         width = self.page.locator('.answer-panel').bounding_box()['width']
         if self.page.evaluate('midnightColumns()'):
             self.drag('.side-grip[data-panel="2"][data-edge="left"]', 60, 0)
@@ -582,14 +687,15 @@ class ListenPageTests(unittest.TestCase):
                 right: r.right, bottom: r.bottom, width: windowFrame().right, height: windowFrame().bottom,
                 initial: [outerWidth, outerHeight]};
         }""")
-        self.assertLessEqual(float(corner['background'].rsplit(',',1)[1].rstrip(' )')), 0.01)
+        self.assertLessEqual(float(corner['background'].rsplit(',', 1)[1].rstrip(' )')), 0.01)
         self.assertEqual(corner['image'], 'none')
         self.assertEqual(corner['right'], corner['width'])
         self.assertEqual(corner['bottom'], corner['height'])
         self.drag('#resize-grip', -60, -40)
         self.page.wait_for_function('window.__sizes.length > 0')
-        self.assertEqual(self.page.evaluate('window.__sizes.at(-1)'),
-                         [corner['initial'][0] - 60, corner['initial'][1] - 40])
+        self.assertEqual(
+            self.page.evaluate('window.__sizes.at(-1)'), [corner['initial'][0] - 60, corner['initial'][1] - 40]
+        )
 
     def test_font_buttons(self):
         self.page.click('[data-font="answer_font_size"][data-step="1"]')
@@ -598,21 +704,21 @@ class ListenPageTests(unittest.TestCase):
 
     def test_save_apply_and_delete_preset(self):
         self.page.click('[data-font="transcript_font_size"][data-step="1"]')
-        self.wait_option('transcript_font_size', '22')
+        self.wait_option('transcript_font_size', '19')
         self.page.click('#layout-button')
         self.page.fill('#preset-name', 'Meeting')
         self.page.click('#preset-save')
         self.page.wait_for_selector('.preset-apply[data-preset="Meeting"]')
         saved = json.loads(self.bridge.option('listen_presets'))
         self.assertEqual(saved[0]['name'], 'Meeting')
-        self.assertEqual(saved[0]['values']['transcript_font_size'], '22')
+        self.assertEqual(saved[0]['values']['transcript_font_size'], '19')
         # A built-in preset changes the look; the saved one brings it back.
         self.page.click('.preset-apply[data-preset="Compact"]')
         self.wait_option('transcript_font_size', '16')
         self.assertEqual(self.bridge.option('listen_layout'), '56,140,0,0,0')
         self.page.click('#layout-button')
         self.page.click('.preset-apply[data-preset="Meeting"]')
-        self.wait_option('transcript_font_size', '22')
+        self.wait_option('transcript_font_size', '19')
         self.assertEqual(self.bridge.option('listen_layout'), '')
         self.page.click('#layout-button')
         self.page.click('.preset-row:has([data-preset="Meeting"]) .preset-delete')
@@ -630,6 +736,7 @@ class ListenPageTests(unittest.TestCase):
 
     def test_reset_layout_restores_every_default(self):
         from settings_state import DEFAULT_OPTIONS, LAYOUT_KEYS
+
         self.page.click('#layout-button')
         self.page.click('[data-toggle="listen_text_bold"]')
         self.wait_option('listen_text_bold', '1')
@@ -646,8 +753,9 @@ class ListenPageTests(unittest.TestCase):
         with self.bridge.lock:
             self.bridge.state[key] = value
         self.bridge.publish()
-        self.page.wait_for_function('([id, value]) => document.getElementById(id)._mdSource === value',
-                                    arg=[key, value], timeout=3000)
+        self.page.wait_for_function(
+            '([id, value]) => document.getElementById(id)._mdSource === value', arg=[key, value], timeout=3000
+        )
 
     def test_live_text_streams_appends_and_rewrites(self):
         base = 'Line one. ' * 2000
@@ -660,23 +768,45 @@ class ListenPageTests(unittest.TestCase):
         self.assertEqual(self.page.evaluate("document.getElementById('transcript').childNodes.length"), 1)
 
     def test_answer_renders_markdown(self):
-        self.set_text('output', '## Plan\n\nUse **bold**, *italic*, `code` and [docs](https://example.com).\n\n'
-                                '- one\n- two\n  - nested\n\n1. first\n2. second\n\n'
-                                '```python\nprint("hi")\n```\n\n> quoted\n\n| A | B |\n|---|--:|\n| 1 | 2 |\n\n---\nsnake_case_name stays')
+        self.set_text(
+            'output',
+            '## Plan\n\nUse **bold**, *italic*, `code` and [docs](https://example.com).\n\n'
+            '- one\n- two\n  - nested\n\n1. first\n2. second\n\n'
+            '```python\nprint("hi")\n```\n\n> quoted\n\n| A | B |\n|---|--:|\n| 1 | 2 |\n\n---\nsnake_case_name stays',
+        )
         found = self.page.evaluate("""() => { const o = document.getElementById('output'), q = s => o.querySelector(s);
             return {h: q('.md-h2')?.textContent, b: q('strong')?.textContent, i: q('em')?.textContent, c: q('p code')?.textContent,
                     link: q('.md-link')?.dataset.tip, nested: q('ul li ul li')?.textContent, ol: o.querySelectorAll('ol li').length,
                     pre: q('pre.md-code code')?.textContent, lang: q('pre.md-code code')?.dataset.lang, quote: q('blockquote p')?.textContent,
                     th: q('th')?.textContent, right: q('td:last-child')?.style.textAlign, hr: !!q('hr'),
                     snake: [...o.querySelectorAll('p')].at(-1).textContent, anchors: o.querySelectorAll('a').length}; }""")
-        self.assertEqual(found, {'h': 'Plan', 'b': 'bold', 'i': 'italic', 'c': 'code', 'link': 'https://example.com',
-                                 'nested': 'nested', 'ol': 2, 'pre': 'print("hi")', 'lang': 'python', 'quote': 'quoted',
-                                 'th': 'A', 'right': 'right', 'hr': True, 'snake': 'snake_case_name stays', 'anchors': 0})
+        self.assertEqual(
+            found,
+            {
+                'h': 'Plan',
+                'b': 'bold',
+                'i': 'italic',
+                'c': 'code',
+                'link': 'https://example.com',
+                'nested': 'nested',
+                'ol': 2,
+                'pre': 'print("hi")',
+                'lang': 'python',
+                'quote': 'quoted',
+                'th': 'A',
+                'right': 'right',
+                'hr': True,
+                'snake': 'snake_case_name stays',
+                'anchors': 0,
+            },
+        )
 
     def test_markdown_never_injects_markup(self):
         self.set_text('output', '<img src=x onerror="window.__pwned=1"> **<b>x</b>** `<script>`')
         self.assertIsNone(self.page.evaluate("window.__pwned ?? null"))
-        self.assertEqual(self.page.evaluate("document.querySelectorAll('#output img, #output script, #output b').length"), 0)
+        self.assertEqual(
+            self.page.evaluate("document.querySelectorAll('#output img, #output script, #output b').length"), 0
+        )
         self.assertIn('<img src=x', self.page.text_content('#output'))
 
     def test_streaming_answer_redraws_only_its_last_block(self):
@@ -700,7 +830,9 @@ class ListenPageTests(unittest.TestCase):
         with self.bridge.lock:
             self.bridge.state['output'] = 'Fresh answer.'
         self.bridge.publish()
-        self.page.wait_for_function("document.getElementById('output')._mdSource === 'Fresh answer.'", timeout=800)  # a waiting read wakes at once, not after its 1 s wait
+        self.page.wait_for_function(
+            "document.getElementById('output')._mdSource === 'Fresh answer.'", timeout=800
+        )  # a waiting read wakes at once, not after its 1 s wait
 
     def test_window_shape_reports_every_surface(self):
         # Fake the native host so the page reports the click targets it wants.
@@ -714,12 +846,17 @@ class ListenPageTests(unittest.TestCase):
         if self.page.evaluate('darkWorkspace()'):
             selectors += ['.capsule', '.workspace-rail']
         for selector in selectors:
-            boxes = self.page.evaluate("s => [...document.querySelectorAll(s)].filter(e => e.getClientRects().length)"
-                                       ".map(e => e.getBoundingClientRect()).map(r => [r.x, r.y, r.width, r.height])", selector)
+            boxes = self.page.evaluate(
+                "s => [...document.querySelectorAll(s)].filter(e => e.getClientRects().length)"
+                ".map(e => e.getBoundingClientRect()).map(r => [r.x, r.y, r.width, r.height])",
+                selector,
+            )
             self.assertTrue(boxes, selector)
             for box in boxes:
                 self.assertIn(box, rects, selector)
-        thickness = self.page.evaluate("parseFloat(getComputedStyle(document.querySelector('#listen>.splitter'), '::after').height)")
+        thickness = self.page.evaluate(
+            "parseFloat(getComputedStyle(document.querySelector('#listen>.splitter'), '::after').height)"
+        )
         self.assertLessEqual(thickness, 4)  # the visible handle stays thin
 
     def test_style_switch_keeps_controls_drafts_and_running_jobs(self):
@@ -735,9 +872,13 @@ class ListenPageTests(unittest.TestCase):
             self.page.click('#layout-button')
             self.page.select_option('#live-ui-theme', theme)
             self.wait_option('ui_theme', theme)
-            self.page.wait_for_function('theme => document.body.dataset.theme === theme', arg='workbench' if theme == 'cosmic' else theme)
+            self.page.wait_for_function(
+                'theme => document.body.dataset.theme === theme', arg='workbench' if theme == 'cosmic' else theme
+            )
             self.assertTrue(self.page.evaluate('window.__originalControls.every(el => el.isConnected)'))
-            self.assertEqual(self.page.input_value('#context-instructions'), 'Keep this unsaved draft across style changes')
+            self.assertEqual(
+                self.page.input_value('#context-instructions'), 'Keep this unsaved draft across style changes'
+            )
             self.assertEqual(self.bridge.state['instructions'], '')
             self.assertEqual(self.bridge.state['jobs'], [dict(id=19, done=False)])
             self.page.keyboard.press('Escape')
@@ -798,7 +939,14 @@ class ListenPageTests(unittest.TestCase):
         self.assertFalse(self.page.locator('#lm_base').is_visible())
         self.page.locator('[data-section="preferences"]').click()
         self.page.locator('#preferences .settings-options').last.locator('summary').click()
-        for selector in ('#answer_mode', '#deadline', '#max_output', '#warm_context', '#speculate', '#incremental_context'):
+        for selector in (
+            '#answer_mode',
+            '#deadline',
+            '#max_output',
+            '#warm_context',
+            '#speculate',
+            '#incremental_context',
+        ):
             self.assertTrue(self.page.locator(selector).is_visible(), selector)
         for width in (1180, 760):
             self.page.set_viewport_size(dict(width=width, height=760))
@@ -809,28 +957,30 @@ class ListenPageTests(unittest.TestCase):
         self.page.click('#more-menu [data-action="hotkeys"]')
         self.assertTrue(self.page.locator('#settings').is_visible())
         self.assertTrue(self.page.locator('#shortcuts').is_visible())
-        self.assertEqual(len(self.page.context.pages),1)
-        self.assertFalse(any(c.get('action')=='hotkeys' for c in self.bridge.commands))
-        self.page.fill('#hotkey-hotkey','ctrl+shift+f8')
+        self.assertEqual(len(self.page.context.pages), 1)
+        self.assertFalse(any(c.get('action') == 'hotkeys' for c in self.bridge.commands))
+        self.page.fill('#hotkey-hotkey', 'ctrl+shift+f8')
         self.page.click('#hotkeys-save')
         self.page.wait_for_function("current.hotkeys.hotkey === 'Ctrl+Shift+F8'")
         self.page.wait_for_function("document.querySelector('#hotkey-hotkey').value === 'Ctrl+Shift+F8'")
-        self.page.fill('#hotkey-topmost','Ctrl+Shift+F8')
+        self.page.fill('#hotkey-topmost', 'Ctrl+Shift+F8')
         self.page.click('#hotkeys-save')
         self.page.wait_for_function('current.hotkey_result && current.hotkey_result.ok === false')
-        self.assertEqual(self.bridge.state['hotkeys']['topmost'],'Ctrl+Alt+T')
-        self.assertEqual(self.page.input_value('#hotkey-topmost'),'Ctrl+Shift+F8')
+        self.assertEqual(self.bridge.state['hotkeys']['topmost'], 'Ctrl+Alt+T')
+        self.assertEqual(self.page.input_value('#hotkey-topmost'), 'Ctrl+Shift+F8')
         self.page.click('#hotkeys-default')
-        self.assertEqual(self.page.input_value('#hotkey-hotkey'),'Ctrl+Alt+Space')
-        self.assertEqual(self.bridge.state['hotkeys']['hotkey'],'Ctrl+Shift+F8')
+        self.assertEqual(self.page.input_value('#hotkey-hotkey'), 'Ctrl+Alt+Space')
+        self.assertEqual(self.bridge.state['hotkeys']['hotkey'], 'Ctrl+Shift+F8')
         self.page.click('#hotkeys-save')
         self.page.wait_for_function("current.hotkeys.hotkey === 'Ctrl+Alt+Space'")
 
     def test_transparency_reaches_controls_and_midnight_chrome_without_fading_text(self):
         self.page.focus('#listen_transparency')
-        samples=[]
-        for amount in (1,99):
-            samples.append(self.page.evaluate("""amount => {
+        samples = []
+        for amount in (1, 99):
+            samples.append(
+                self.page.evaluate(
+                    """amount => {
                 const slider=document.querySelector('#listen_transparency');slider.value=amount;
                 slider.dispatchEvent(new Event('input',{bubbles:true}));
                 return ['#pause','#pin','#live-caption','.capsule','.workspace-rail'].map(selector=>{
@@ -839,19 +989,22 @@ class ListenPageTests(unittest.TestCase):
                     return {selector,alpha:color.startsWith('rgba')?Number(color.slice(color.lastIndexOf(',')+1,-1)):1,
                         opacity:s.opacity,text:s.color};
                 }).filter(Boolean);
-            }""",amount))
-        for before,after in zip(*samples):
+            }""",
+                    amount,
+                )
+            )
+        for before, after in zip(*samples):
             with self.subTest(selector=before['selector']):
-                self.assertGreater(before['alpha'],after['alpha']+0.01)
-                self.assertEqual(after['opacity'],'1')
-                self.assertEqual(before['text'],after['text'])
+                self.assertGreater(before['alpha'], after['alpha'] + 0.01)
+                self.assertEqual(after['opacity'], '1')
+                self.assertEqual(before['text'], after['text'])
 
     def test_chinese_labels(self):
         with self.bridge.lock:
             self.bridge.state['language'] = 'zh'
         self.bridge.publish()
         self.page.wait_for_function("document.querySelector('#layout-button').textContent==='布局'")
-        self.assertEqual(self.page.text_content('#meeting-refinements summary'), '继续处理回答')
+        self.assertEqual(self.page.text_content('#meeting-refinements summary'), '追问与改写')
         self.assertEqual(self.page.text_content('#meeting-settings h2'), '会议辅助')
         self.page.click('#layout-button')
         self.assertEqual(self.page.text_content('#layout-reset'), '恢复默认布局')

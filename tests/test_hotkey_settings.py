@@ -1,5 +1,5 @@
 import unittest
-from hotkey_settings import parse, validate, DEFAULTS
+from hotkey_settings import parse, validate, DEFAULTS, taken_elsewhere, PROBE_ID
 
 
 class HotkeyValidationTests(unittest.TestCase):
@@ -72,6 +72,42 @@ class HotkeySavingTests(unittest.TestCase):
             bridge.command(dict(action='save_hotkeys', id='invalid', values=dict(DEFAULTS, hotkey=DEFAULTS['topmost'])))
             self.assertFalse(bridge.hotkey_result['ok'])
             self.assertEqual(self.ui.hotkeys['hotkey'], 'Ctrl+Shift+F8')
+        finally:
+            bridge.close()
+
+    def test_reports_shortcuts_held_by_another_program(self):
+        with patch('hotkey_settings.ctypes.windll.user32') as api:
+            api.RegisterHotKey.return_value = 0
+            self.assertTrue(taken_elsewhere('ctrl+shift+f8'))
+            api.UnregisterHotKey.assert_not_called()
+            api.RegisterHotKey.return_value = 1
+            self.assertFalse(taken_elsewhere('Ctrl+Shift+F8'))
+            api.UnregisterHotKey.assert_called_once_with(None, PROBE_ID)
+            # This app's own shortcuts are not probed: the page reports duplicates.
+            api.RegisterHotKey.reset_mock()
+            self.assertFalse(taken_elsewhere(DEFAULTS['hotkey'], DEFAULTS.values()))
+            api.RegisterHotKey.assert_not_called()
+
+    def test_bridge_checks_a_shortcut_and_releases_shortcuts_while_recording(self):
+        from glass_bridge import GlassBridge
+
+        bridge = GlassBridge(self.ui)
+        self.ui.hotkey_thread_id = 123
+        try:
+            with patch('glass_bridge.taken_elsewhere', return_value=True) as probe:
+                bridge.command(dict(action='check_hotkey', id='c1', value='Ctrl+Shift+F8'))
+                self.assertEqual(probe.call_args.args[0], 'Ctrl+Shift+F8')
+            self.assertEqual(bridge.snapshot()['hotkey_check'], dict(id='c1', taken=True))
+            bridge.command(dict(action='check_hotkey', id='c2', value='not a shortcut'))
+            self.assertEqual(bridge.hotkey_check, dict(id='c2', taken=False))
+            self.assertEqual(bridge.snapshot()['hotkey_failed'], [])
+            with patch('hotkey_settings.ctypes.windll.user32.PostThreadMessageW', return_value=1) as post:
+                bridge.command(dict(action='hotkey_recording', value=True))
+                bridge.command(dict(action='hotkey_recording', value=True))
+                self.assertTrue(self.ui.hotkeys_paused)
+                bridge.command(dict(action='hotkey_recording', value=False))
+                self.assertFalse(self.ui.hotkeys_paused)
+                self.assertEqual(post.call_count, 2)
         finally:
             bridge.close()
 

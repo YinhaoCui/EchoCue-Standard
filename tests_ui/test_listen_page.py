@@ -32,6 +32,8 @@ def fixture_state():
         hotkey_defaults=dict(HOTKEY_DEFAULTS),
         hotkey_status='Shortcuts ready',
         hotkey_result=None,
+        hotkey_check=None,
+        hotkey_failed=[],
         navigation_request=None,
         providers=['DeepSeek', 'Kiro（本机登录）'],
         provider='DeepSeek',
@@ -135,6 +137,9 @@ class FakeBridge:
                 data = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
                 with bridge.lock:
                     bridge.commands.append(data)
+                    if data.get('action') == 'check_hotkey':
+                        # Stands in for a shortcut another program holds.
+                        bridge.state['hotkey_check'] = dict(id=data['id'], taken=data.get('value') == 'Ctrl+Alt+F12')
                     if data.get('action') == 'save_hotkeys':
                         from hotkey_settings import validate
 

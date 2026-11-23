@@ -1,5 +1,6 @@
 """Exercise the real workbench against the existing isolated command bridge."""
 
+import time
 import unittest
 from pathlib import Path
 import test_listen_page as listen
@@ -92,6 +93,50 @@ class WorkbenchTests(unittest.TestCase):
         field.press('F9')
         self.page.click('#hotkeys-save')
         self.page.wait_for_function("current.hotkeys.hotkey === 'F9'")
+
+    def test_shortcut_conflicts_are_reported_while_binding(self):
+        self.settings('shortcuts')
+        field = self.page.locator('#hotkey-hotkey')
+        note = self.page.locator('#hotkey-note-hotkey')
+        field.focus()
+        self.assertEqual(note.text_content(), '')
+        # The same shortcut as another action: both fields say so at once.
+        field.press('Control+Alt+T')
+        self.assertEqual(note.text_content(), 'Same as Always on top. Choose another.')
+        self.assertEqual(self.page.text_content('#hotkey-note-topmost'), 'Same as Create an answer. Choose another.')
+        self.assertEqual(field.get_attribute('aria-invalid'), 'true')
+        # A shortcut another program holds.
+        field.press('Control+Alt+F12')
+        self.page.wait_for_function(
+            "document.querySelector('#hotkey-note-hotkey').textContent.startsWith('Already used by another program')"
+        )
+        self.assertEqual(self.page.text_content('#hotkey-note-topmost'), '')
+        field.press('Control+Shift+K')
+        self.page.wait_for_function("document.querySelector('#hotkey-note-hotkey').textContent === ''")
+        self.assertEqual(field.get_attribute('aria-invalid'), 'false')
+        self.page.locator('#hotkey-topmost').focus()
+        self.page.locator('#hotkey-hotkey').focus()
+        self.page.locator('#hotkey-topmost').focus()
+
+        def recording():
+            with self.bridge.lock:
+                return [c['value'] for c in self.bridge.commands if c.get('action') == 'hotkey_recording']
+
+        # Commands are sent one at a time, so they arrive in the order the focus moved.
+        expected = [True, False, True, False, True, False, True]
+        deadline = time.monotonic() + 10
+        while len(recording()) < len(expected) and time.monotonic() < deadline:
+            self.page.wait_for_timeout(50)
+        self.assertEqual(recording(), expected)
+        # A saved shortcut that could not be registered is marked on its own field.
+        self.page.click('#hotkeys-save')
+        self.page.wait_for_function("current.hotkeys.hotkey === 'Ctrl+Shift+K'")
+        with self.bridge.lock:
+            self.bridge.state['hotkey_failed'] = ['hotkey']
+            self.bridge.publish()
+        self.page.wait_for_function(
+            "document.querySelector('#hotkey-note-hotkey').textContent.startsWith('Already used by another program')"
+        )
 
     def settings(self, section):
         self.page.click('button.nav[data-view=settings]')
